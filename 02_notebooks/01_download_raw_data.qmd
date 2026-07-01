@@ -1,0 +1,212 @@
+---
+title: "Notebook 01: Download Raw Data"
+author: "Shirshak Aryal"
+date: today
+format:
+  html:
+    code-overflow: scroll
+    embed-resources: true
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+Download **raw RNA-seq counts** and **clinical metadata** for **TCGA-GBM** from the **NIH Genomic Data Commons** (the 'GDC' in GDCQuery) using the `TCGAbiolinks` library.
+
+## 1. Import Libraries
+
+```{r}
+#| label: import_libraries
+
+
+library(TCGAbiolinks)  # query and download TCGA datasets from GDC
+library(tidyverse)     # data manipulation and visualisation
+
+cat("\nLibraries loaded successfully\n")
+cat("TCGAbiolinks version:", as.character(packageVersion("TCGAbiolinks")), "\n")
+cat("tidyverse version:", as.character(packageVersion("tidyverse")), "\n")
+```
+
+## 2. Download Dataset
+
+### 2.1. Query For Dataset Details Before Downloading
+
+The **TCGA-GBM (The Cancer Genome Atlas - GlioBlastoma Multiforme) dataset** is a **multi-omic** dataset, meaning it has multiple **modalities** of data from the same collection of samples (e.g. bulk RNA-seq, DNA-seq, etc.). The focus of this project is only the **bulk RNA-seq modality.**
+
+In the query below:
+
+-   The **`data.category`** **parameter** being **"Transcriptome Profiling"** specifically, together with the **`workflow.type`** **parameter**, denotes that the data queried for is of the **bulk RNA-seq** modality.
+-   The **`data.type`** **parameter** being **"Gene Expression Quantification"** specifically, denotes that gene-level counts are retrieved, as opposed to [transcript-level reads or the raw sequencing files]{.underline}.
+-   The **`workflow.type` parameter** being **"STAR - Counts"** denotes that the version of the retrieved data is specifically the one that was **both aligned AND counted by the STAR software,** as opposed to the [historical]{.underline} version where [STAR was only used for alignment]{.underline} and the counting was done by a separate tool called [HTSeq-count]{.underline}**.**
+
+```{r}
+#| label: query_for_dataset_details
+
+query_rnaseq <- GDCquery(
+    project = "TCGA-GBM",                          # i.e. the TCGA-GBM dataset
+    data.category = "Transcriptome Profiling",     # i.e. bulk RNA-seq modality (combined with workflow.type below)
+    data.type = "Gene Expression Quantification",  # i.e. raw gene counts specifically
+    workflow.type = "STAR - Counts"                # i.e. latest version; together with data.category, filters to bulk RNA-seq
+)
+
+results <- getResults(query_rnaseq)
+cat("\nQuery executed successfully")
+```
+
+### 2.2. Inspect Query Results
+
+The **`results`** **variable** contains the query results, which is simply a dataframe containing **metadata about the actual bulk RNA-seq data.**
+
+-   **Rows** represent **each sample involved** in the experiment that generated the bulk RNA-seq data.
+
+-   **Columns** represent **details about each of those samples.**
+
+#### 2.2.1. Inspect Results Structure
+
+```{r}
+#| label: inspect_results_structure
+
+
+cat("\nQuery results (first 5 columns shown horizontally for visual clarity):\n")
+results[, 1:5] %>% glimpse()
+
+# Polished tabular view of key columns
+results %>%
+  select(cases, sample_type, data_format, access, file_size) %>%
+  head(10) %>%
+  knitr::kable(caption = "First 10 rows of query results (selected metadata columns)")
+```
+
+#### 2.2.2. Visualize Sample Distribution
+
+```{r}
+#| label: visualize_sample_distribution
+
+
+# visualize sample type distribution as a table
+
+results %>%
+  count(sample_type) %>%
+  rename("Sample Type" = sample_type, "Count" = n) %>%
+  knitr::kable(caption = "TCGA-GBM samples by biological condition")
+```
+
+### 2.3. Filter And Download Datasets Of Samples
+
+The 14 recurrent tumor and 5 normal samples will be **entirely excluded**, focusing only on the **372 Primary Tumor samples** for comparison of **Proneural vs Mesenchymal** subtypes.
+
+The download will save the **raw sample files** (which are TSV) to the **`01_data/01_raw`** **directory**.
+
+#### 2.3.1. Filter To Primary Tumor Samples
+
+```{r}
+#| label: filter_to_primary_tumor_samples
+
+
+query_primary <- GDCquery(
+  project = "TCGA-GBM",
+  data.category = "Transcriptome Profiling",
+  data.type = "Gene Expression Quantification",
+  workflow.type = "STAR - Counts",
+  sample.type = "Primary Tumor"  # new parameter added to the previous query
+)
+
+results_primary <- getResults(query_primary)
+cat("Primary tumor samples:", nrow(results_primary), "\n")
+```
+
+#### 2.3.2. Download Filtered Dataset
+
+```{r}
+#| label: download_filtered_dataset
+
+
+GDCdownload(
+  query = query_primary,
+  directory = "../01_data/01_raw/01_samples",
+  files.per.chunk = 50
+)
+
+# Confirm download
+# list.files() returns a list of filenames (as strings)
+downloaded_files <- list.files(
+  path = "../01_data/01_raw/01_samples",  # the directory to look inside for the filenames
+  recursive = TRUE,                       # look inside subfolders too
+  pattern = "\\.tsv$"                     # take only those filenames that end in .tsv
+)
+
+cat("Download complete\n")
+cat("TSV files found:", length(downloaded_files), "\n")
+cat("Expected:", nrow(results_primary), "\n")
+cat("Match:", length(downloaded_files) == nrow(results_primary), "\n")
+```
+
+## 3. Download Clinical Metadata
+
+### 3.1. Query For Clinical Metadata
+
+```{r}
+#| label: query_for_clinical_metadata
+
+
+clinical <- GDCquery_clinic(
+  project = "TCGA-GBM",
+  type = "clinical"
+)
+cat("\nQuery executed successfully")
+```
+
+### 3.2. Inspect Clinical Metadata
+
+```{r}
+#| label: inspect_clinical_metadata
+
+
+cat("\nClinical metadata (first 5 columns shown horizontally for visual clarity):\n")
+clinical[, 1:5] %>% glimpse()
+
+clinical %>%
+  select(submitter_id, vital_status, days_to_death,
+         days_to_last_follow_up, age_at_index) %>%
+  head(10) %>%
+  knitr::kable(caption = "Key clinical variables (first 10 patients)")
+```
+
+### 3.3. Save Clinical Metadata
+
+```{r}
+#| label: save_clinical_metadata
+
+
+saveRDS(clinical, "../01_data/01_raw/02_clinical/01_clinical_metadata.rds")
+cat("Saved to 01_data/01_raw/02_clinical/01_clinical_metadata.rds\n")
+```
+
+## 4. Perform Sanity Checks
+
+```{r}
+#| label: perform_sanity_checks
+
+
+# Confirm sample files downloaded
+sample_files_exist <- length(list.files(
+  "../01_data/01_raw/01_samples",
+  recursive = TRUE,
+  pattern = "\\.tsv$"
+)) == 372
+
+# Confirm clinical metadata saved
+clinical_file_exists <- file.exists(
+  "../01_data/01_raw/02_clinical/01_clinical_metadata.rds"
+)
+
+cat("Sample files (372 TSV):", ifelse(sample_files_exist, "✓", "✗"), "\n")
+cat("Clinical metadata:     ", ifelse(clinical_file_exists, "✓", "✗"), "\n")
+
+if (sample_files_exist && clinical_file_exists) {
+  cat("\nNotebook 01 complete — all outputs verified\n")
+} else {
+  cat("\nWARNING: One or more outputs missing\n")
+}
+```
