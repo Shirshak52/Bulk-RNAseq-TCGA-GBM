@@ -1,0 +1,665 @@
+---
+title: "Notebook 02: Prepare Dataset"
+author: "Shirshak Aryal"
+date: today
+format:
+  html:
+    code-overflow: scroll
+    embed-resources: true
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+Consolidate data of **all 372 samples** into a **single `SummarizedExperiment` object** to extract the **`unstranded` counts matrix** and **gene metadata**.
+
+## 1. Import Libraries
+
+**`SummarizedExperiment`** is a type of object in R that is equivalent to **Python's `AnnData`**. It holds:
+
+-   The **counts matrix** itself (i.e. genes x samples): equivalent to **`AnnData`'s `adata.X`**
+
+-   **Sample metadata** (i.e. sample details and [clinical metadata]{.underline}): equivalent to **`AnnData`'s `adata.obs`**
+
+-   **Gene metadata** (e.g, Ensembl IDs, gene symbols, chromosome coordinates, etc.): equivalent to **`AnnData`'s `adata.vars`**
+
+```{r}
+#| label: import_libraries
+
+
+library(TCGAbiolinks)          # query and download TCGA datasets from GDC
+library(tidyverse)             # data manipulation and visualisation
+library(SummarizedExperiment)  # container to store multi-assay data; AnnData of R
+
+cat("\nLibraries loaded successfully\n")
+cat("TCGAbiolinks version:", as.character(packageVersion("TCGAbiolinks")), "\n")
+cat("tidyverse version:", as.character(packageVersion("tidyverse")), "\n")
+cat("SummarizedExperiment version:", as.character(packageVersion("SummarizedExperiment")), "\n")
+```
+
+## 2. Prepare Dataset
+
+### 2.1. Inspect Sample Details
+
+Inspect a single sample file to explore and understand the structure and contents.
+
+```{r}
+#| label: inspect_sample_details
+
+
+# Get path to first TSV file
+sample_files <- list.files(
+  path = "../01_data/01_raw/01_samples",
+  recursive = TRUE,
+  pattern = "\\.tsv$",
+  full.names = TRUE
+)
+
+# Read first file
+sample_one <- read_tsv(sample_files[1], comment = "#")
+
+cat("Single sample file dimensions:\n")
+cat("Rows (genes):", nrow(sample_one), "\n")
+cat("Columns:", ncol(sample_one), "\n\n")
+cat("Column names:\n")
+print(colnames(sample_one))
+
+head(sample_one) %>% knitr::kable(caption = "First 6 rows of a single sample TSV")
+```
+
+The file contains **60,664 rows (genes)**. which includes **both coding genes and non coding genes**.
+
+-   During bulk RNA sequencing, **numerous types of fragments** are captured, not just mRNA fragments. These include:
+
+    -   **Exon sequences**, which are the [sequences/segments found in coding genes]{.underline} that form the actual [mature mRNA molecule]{.underline}. These **map to coding genes**.
+
+    -   **Intron sequences**, which are the [sequences/segments found in coding genes]{.underline} that get [transcribed into pre-mRNA but are discarded]{.underline}. These also **map to coding genes**.
+
+    -   **Functional RNA sequences**, which are RNA transcribed from, and hence only map to, **non-coding genes**. These genes can **exist independently** and are **also found nested inside intron regions of coding genes**. The most commonly found ones are:
+
+        -   **tRNA (transfer RNA)**, which are RNA molecules that **physically transfer amino acid molecules to the ribosome**.
+
+        -   **rRNA (ribosomal RNA)**, which are RNA molecules that **receive the amino acid molecules from tRNA** and **chain them together** according to the [codons present in the mRNA molecule]{.underline} being held by the ribosome.
+
+        -   **miRNA (micro RNA)**, which are RNA molecules that **destroy mRNA molecules** at controlled rates to [regulate protein synthesis]{.underline}.
+
+        -   **snRNA (small nuclear RNA)**, which are RNA molecules that **remove intron sequences from pre-mRNA** to form mature mRNA molecules.
+
+        -   **lncRNA (long non-coding RNA)**, which are RNA molecules that **fine-tune gene expression levels** as well as **physically** **manipulate protein molecules** for different purposes ([other than gene expression]{.underline}). These RNA molecules work in a total of **5 ways**:
+
+            -   **Fine tuning gene expression levels**
+
+                -   **Decoys**: lncRNA molecules fold in certain ways to **mimic the binding sites of transcription factors (TFs)/miRNA molecules**, acting as a [molecular sponge]{.underline} that 'absorbs' them so that their [intended targets are not reached]{.underline}.
+
+                -   **Guides**: lncRNA molecules **control gene accessibility by ensuring that certain areas of a chromatin are accessible or folded**. They do so by folding [one of their ends]{.underline} in a certain way to **grab chromatin-modifying proteins**, and their [other end]{.underline} physically locates and **drags that protein to the specific location** in the chromatin to either loosen it or fold it up, making certain genes accessible or inaccessible.
+
+                -   **Enhancers/Regulators**: As lncRNA molecules are being **actively synthesized**, they attract the required mechanisms to **upregulate the expression of the gene right next to it**.
+
+            -   **Physically manipulating protein molecules**
+
+                -   **Scaffolds**: lncRNA molecules **form protein complexes** by combining [two different protein molecules that would otherwise not interact with each other]{.underline}. The complexes act as **specialised machinery**;
+
+                    -   **Structural machinery**: They form **membraneless structures** within the cell by acting as an architectural core, **condensing proteins into distinct, phase-separated droplets** (like oil bubbles in water) without needing a lipid membrane.
+
+                    -   **Metabolic machinery**: They **line up cascading metabolic enzymes** **of specific pathways** to [ensure their sequential reactions occur in rapid fashion]{.underline} (e.g., clustering sequential glycolytic enzymes together in the cytoplasm to accelerate the breakdown of glucose).
+
+                -   **Signals**: lncRNA are **synthesized as a result of cellular stress**. They trap specific protein molecules to [alter their activity, change their lifespan, or block them from their targets]{.underline}, to allow the cell to **rapidly alter its own behavior/adapt to the stress**.
+
+The file also includes **4 summary rows** (i.e. `N_unmapped`, `N_multimapping`, `N_noFeature`, `N_ambiguous`) which are **diagnostic outputs from the STAR aligner**.
+
+A cDNA fragment is counted as a valid entry into the raw counts matrix **if and only if** its sequence exists **only and completely** within the **combined exon regions belonging to one specific gene ID**. The 4 columns describe the total number of sequencing reads/fragments that **could not be cleanly assigned to a single known gene**. These invalid cases are of two types:
+
+-   The cDNA fragment's sequence exists in **zero/multiple locations** in the genome
+
+    -   **`N_unmapped`**: The cDNA fragment's sequence **does not exist anywhere in the reference genome**.
+
+    -   **`N_multimapping`**: The cDNA fragment's sequence exists in **multiple places** in the reference genome, making their **exact origin ambiguous**.
+
+-   The cDNA fragment's sequence exists in a **single location** in the genome
+
+    -   **`N_noFeature`**: The cDNA fragment's sequence **exists uniquely (i.e. in only one location) in the genome, but the sequence is not a subset of any combination of sequences of the exons of any single gene**.
+
+    -   **`N_ambiguous`**: The cDNA fragment's sequence **exists uniquely (i.e. in only one location) in the genome, but overlaps the exons of multiple different genes simultaneously**.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+The **9 columns** in the file consist of:
+
+-   **3 annotation columns:**
+
+    -   **`gene_id`**: The **Ensembl ID** of a gene, e.g. `ENSG00000000003.15`, `ENSG00000000005.6`, etc
+
+    -   **`gene_name`**: The **HGNC/official symbol** of a gene, e.g. `TSPAN6`, `TNMD`, etc. **HGNC** stands for **HUGO (HUman Genome Organization) Gene Nomenclature Committee**.
+
+    -   **`gene_type`**: The **biotype** of a gene, e.g. `protein_coding`. Biotype explicitly means the classification of a gene based on **what it transcribes**, whether its mRNA, lncRNA, whether it is a pseudogene, etc. (**Note**: Pseudogenes are defective copies of genes. They **do not make proteins**, but their transcripts **function like lncRNAs**.).
+
+-   **6 count/expression columns:** `unstranded`, `stranded_first`, `stranded_second`, `tpm_unstranded`, `fpkm_unstranded`, `fpkm_uq_unstranded`
+
+The **count columns** are further of two categories:
+
+-   **Raw counts**
+
+    There are two categorizations of types of raw counts:
+
+    -   **Unstranded vs Stranded**
+
+        -   **Unstranded reads** are the raw counts of cDNA fragments from experiments where the **cDNA were prepared in an unstranded manner**. In simple terms:
+
+            -   The cDNA strand that **complements the original mRNA** strand is considered the **bottom** strand.
+
+            -   The strand that complements this strand after the mRNA degrades away is considered the **top** strand. This **exactly matches the mRNA's sequence**, which in turn **exactly matches the sequence of it's parent gene**.
+
+            Unstranded cDNA has **no way to demarcate top strand vs bottom strand**. This introduces ambiguity during reverse transcription:
+
+            -   When converting RNA to cDNA in an unstranded protocol, **either strand** of the resulting **double-stranded cDNA** can end up being **sequenced**. A read that originates from the **bottom strand** (the complement strand) will map to the **opposite strand of the parent gene's coordinate**, and may be **incorrectly assigned to a different gene** whose annotated coordinates happen to **overlap that position on the opposite strand**. Because the strand identity of each read is **unknown**, this mislabeling cannot be detected or corrected computationally.
+
+            Paired reads would not solve this ambiguity either, because they merely provide start and end fragments to look out for. They do not provide information on which strand the parent gene is on.
+
+        -   **Stranded reads** are reads where it **IS** known which strand of the cDNA fragment the **top strand** is. This therefore **resolves the opposite-strand gene overlap ambiguity**.
+
+            However, if a fragment matches a coordinate where **two different genes**, or the **exons** of two different genes, overlap on the **SAME** strand, knowing the strand orientation alone is **not enough to distinguish which gene is the parent**. This is where **paired-end reads** solve the issue.
+
+    -   **Single-end reads vs Paired-end reads**
+
+        -   **Single end reads** are reads where the sequencing machine only reads the cDNA fragment from **one direction**, generating just **one sequence (i.e. Read 1)**.
+
+            -   Single-end reads are **too short to span across gaps** or **connect distant exons of the same gene**. If a single read lands directly inside a region where **two different genes share the exact same sequence on the same strand**, the aligner has **no extra context to know which gene it belongs to**.
+
+        -   **Paired end reads** are reads where the sequencing machine reads **both ends of the exact same cDNA fragment**, generating **two sequences (Read 1 and Read 2)** that point **toward** each other (i.e. Read 1 is read 'forwards' and Read 2 is read 'backwards'.). This provides two distinct sequence anchors with a known physical distance between them.
+
+            -   To make this happen, specific molecules called **adapters** are attached to **both ends of the fragment**. These molecules dictate **which end the sequencing machine starts reading from**. The end with the **start adapter** is where **Read 1** comes from.
+
+            -   If a fragment lands in a same-strand overlap, Read 1 might sit in the ambiguous overlapping zone, but **Read 2 will land further down the line**. Since the software has two sequences to match in the same strand, this combination is much more specific and hence the parent gene can be pinpointed much more accurately.
+
+            Paired-end reads can also resolve cases where **splicing causes ambiguity** about which **specific combination of exons** the cDNA fragment represents.
+
+            When an RNA molecule is spliced, introns are cut out and the remaining segments, which are exons, are joined together. A single-end read is often too **short to span across these cut sites**, leaving the software blind to how the exons are connected.
+
+            Paired-end reads solve this by **bridging the gap**. While a single fragment might still occasionally skip over a middle exon in its unread center, looking at the **combined patterns of millions of overlapping paired reads** allows the software to **mathematically reconstruct** the exact combinations of exons present.
+
+    The file specifically contains **3 raw counts columns**:
+
+    -   **`unstranded`**
+
+    -   **`stranded_first`**: The cDNA molecule is ensured to have the **TOP strand as Read 1**. Since Read 1 is **always read forward**, this means the **top strand is read forward**, directly matching the **original mRNA sequence** and therefore the **parent gene sequence**.
+
+    -   **`stranded_second`**: The cDNA molecule is ensured to have the **BOTTOM strand as Read 1**. Since Read 1 is **always read forward**, this means the **bottom strand is read forward**, and the software automatically looks for its **complement on the opposite strand** to find the parent gene.
+
+------------------------------------------------------------------------
+
+-   **Normalized counts**: Since longer genes mathematically have a higher chance of having more fragments being read, raw numbers can be inaccurate for comparing relative gene expression levels. Hence, these columns have different types of normalized measurements.
+
+    -   **`tpm_unstranded`**: **TPM** stands for **Transcripts Per Million**. In simple terms, it refers to the number of cDNA fragments that would be present in a random collection of 1 million total cDNA molecules from a particular sample. It first scales the raw counts by **parent** **gene length**, then by the **total sequencing depth** of the sample (i.e. the total sum of raw counts of all genes of a sample). It is calculated in these steps:
+
+        -   **Divide by length**: Divide the **raw count of each gene** by its **length in** **kilobases (kb)**. **1 kb = 1,000 base pairs**. This gives you the **Reads Per Kilobase (RPK)**. In literal terms this is simply the length-normalized counts of each gene.
+
+        -   **Proportionalize all RPKs**: Divide all RPK values by the **total RPK value** to get the true proportional representation of each gene in the sample.
+
+        -   **Multiply by 1 million**: Since the true proportional representation is a very small number, scale it by 1 million to get a number that is convenient to work with. **This is the TPM value of the gene in the sample.**
+
+    -   **`fpkm_unstranded`**: Stands for Fragments Per Kilobase per Million. Outdated,
+
+    -   **`fpkm_uq_unstranded`**: Stands for FPKM-Upper Quartile. Outdated,
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+Out of the available count columns, **only `unstranded` is selected** because the **original library preparation used an unstranded protocol**. While the STAR aligner automatically outputs `stranded_first` and `stranded_second` columns regardless of input, these columns **cannot** be used. Attempting to force stranded calculations on data lacking physical strand markings produces **unreliable counts** that do not reflect true gene expression levels. Therefore, **the `unstranded` column is the only accurate ground truth for this dataset**.
+
+### 2.2. Combine Data Of All Samples Into `SummarizedExperiment` Object
+
+#### 2.2.1. Recreate Query For Primary Tumor Samples
+
+Recreate the query for primary tumor samples from **Notebook 01**. This is required as a **mandatory input for `GDCprepare()`**, which uses it to locate and correctly **map the 372 downloaded files to their respective sample identities**.
+
+```{r}
+#| label: recreate_query_for_primary_tumor_samples
+
+
+query_primary <- GDCquery(
+  project = "TCGA-GBM",
+  data.category = "Transcriptome Profiling",
+  data.type = "Gene Expression Quantification",
+  workflow.type = "STAR - Counts",
+  sample.type = "Primary Tumor"
+)
+cat("Query object recreated successfully\n")
+cat("Samples in query:", nrow(getResults(query_primary)), "\n")
+```
+
+#### 2.2.2. Create `SummarizedExperiment` Object
+
+The GDCPrepare() function is used here, which performs three things simultaneously:
+
+-   **Constructs the count matrix**
+
+    -   It **reads all 372 TSV files** from the download directory,
+
+    -   then **extracts ALL counts columns** from each,
+
+    -   then **stacks those columns into one matrix** (genes as rows, samples as columns).
+
+    The **columns** are **now known as assays**.
+
+-   **Attaches sample metadata**
+
+    -   It maps **each column name (i.e. sample)** to its **TCGA barcode**, patient ID, sample type, and any other GDC metadata.
+
+    -   It also automatically pulls in the **molecular subtype** classifications (explained below) from the **2010 paper**, storing them in **columns prefixed with `paper_`**.
+
+        -   Tumors, in general, are classified based on:
+
+            -   **Histological appearance**: what the tumor tissue looks like u**nder the microscope**.
+
+            -   **Radiological appearance**: what the tumor tissue looks like in **MRI imaging**.
+
+            -   **Molecular profiling**: A **newer** approach that classifies tumors based on **measurable biological subtype:** found inside the tumor tissue. Depending on which molecules are measured:
+
+                -   **Genomic subtyping**: Based on DNA. Specifically which exact genes are **mutated** and which genomic regions are **amplified** or **deleted**. For instance, regions containing **oncogenes** have **high copy numbers in tumor cells**, and **tumor suppressing genes** have **far fewer copy numbers in tumor tissue**, as compared to normal cells.
+
+                    -   An **oncogene** is specifically the **mutated form of a healthy, normal gene** that when mutated, become malignant. The healthy 'parent' gene is called a **proto-oncogene**, and the moment it mutates into a malignant sequence, it is called an oncogene.
+
+                    -   Oncogenes can manifest this malignancy, regardless of the numerous possible mutations, strictly in **only ONE out of 6 specific ways**:
+
+                        -   The oncogene **overproduces protein molecules that signal cell division.**
+
+                        -   The oncogene **produces receptors of those proteins**, that are **malformed** in such a way that they get **permanently triggered** even without receiving those protein molecules.
+
+                        -   The oncogene **causes cytoplasmic kinases** (which are proteins that relay a signal from the outside of the cell to the nucleus in a coordinated manner) that **relay the** **grown factor signal from the receptor to the nucleus** to **trigger permanently, even WITHOUT the growth factor** triggering the receptor. **This repeatedly** **signals the cell to divide**.
+
+                        -   The oncogene **overproduces transcription factor (TF) protein molecules** that aggressively **upregulate** the genes involved in the **S** (DNA replication) and **G2** (final checks before cell division) phases of the cell cycle. This causes **DNA to replicate in an uncontrolled manner**, **increasing the chances of further mutations**.
+
+                        -   The oncogene **overproduces anti-apoptosis protein molecules** that directly **block the cell's suicide machinery**, enabling the cell to survive while stressed. As it gets flooded with its own stress-signaling proteins, the chances of further mutations are increased.
+
+                        -   The oncogene **excessively signals** the start of the **S phase** by chemically **disabling (phosphorylating) Rb (Retinoblastoma)** molecules, which causes them to **lose their grip on the genes that start DNA replication**. This forces the cell to **rapidly start replicating DNA**, increasing chances of further mutations.
+
+                -   **Epigenomic subtyping**: Based on:
+
+                    -   **DNA methylation**, A process where a **methyl group (i.e. -CH~3~) is added to the DNA strand**, specifically on a **C (i.e. cytosine) base**. It evemtually results in **physical obstruction of transcription mechanisms** from accessing the gene it is added to, effectively **silencing** said gene.
+
+                    -   **Histone protein modification**: Histone proteins are the **proteins that the DNA strand physically wraps around**, forming the actual **chromatin** fibres. Modifications on these proteins (via processes like acetylation, methylation, phosphorylation, etc.) determine **how tightly DNA strands coil around them**, effectively affecting chromatin accessibility.
+
+                    -   **Chromatin accessibility**: Certain regions of the DNA strand are **openly accessible** while some regions are **tightly locked**, i.e. inaccessible.
+
+                        -   Accessible regions, aka **euchromatins**, are the only regions where genes are accessible, hence expressed.
+
+                        -   The genes inside inaccessible (aka **heterochromatin**) regions are not expressed.
+
+                        -   **Euchromatin** regions are loose and generallylie **facing the center of the nucleus.**
+
+                        -   **Heterochromatin** regions are tightly coiled, glued together, and generally **crammed against the nuclear membrane**, aka the nuclear lamina.
+
+                        -   Euchromatin and heterochromatin are **temporary designations**; within the same type of cell, accessible regions become inaccessible and vice versa along time, and regions that contain cell type specific genes are only accessible in that cell type itself, and inaccessible in other cell types.
+
+                        Chromatin accessibility is measured using **ATAC-seq** (Assay for Transposase-Accessible Chromatin using sequencing). **Transposase is the lab-made enzyme** used to check chromatin accessibility.
+
+                    -   **3D genome organizations**: How the **chromatin fiber folds in 3D space**, or more specifically, the concept of **TADs (Topologically Associated Domains)**. TADs are regions of DNA that are **bunched up and held together tightly** by specific proteins. They are formed like this:
+
+                        -   A **ring-shaped** protein called **cohesin** lands on a loose, **straignt** strand of DNA.
+
+                        -   The cohesin actively **feeds the strand through its center**, forming a loop that grows larger and larger. This process is called **loop extrusion**.
+
+                        -   The loop grows in size until the cohesin ring hits specific proteins called **ctcfs** on the DNA strand in either end of the loop.
+
+                        This **fullly grown loop** that is bound by CTCF proteins in either end is now a **TAD**. More accurately, **a TAD is comprised of a main loop that has multiple sub-loops** originating from it in the same manner, which in turn can have their own sub-loops. The [structure is similar to that of an opuntia plant]{.underline}, with a main pad growing smaller pads directly from it. This specific structure **highly isolates enhancers and promoters**, such that their respective genes are **upregulated** while ensuring the [enhancers do not accidentally come into contact with and therfore upregulate the **wrong** gene]{.underline}.
+
+                        -   The **entire genome** exists as all 23 pairs of chromatin fibres bunched up into **numerous such TADs** of various sizes, which shift around and change depending on what genes need to be expressed more or less.
+
+                        -   Furthermore, when large stretches of the chromatin are silenced into **heterochromatin**, they are recruited to the nuclear edge and anchored to the **nuclear lamina**. These large, lamina-bound silencing zones are called **Lamina-Associated Domains (LADs)**, and they can contain **multiple silenced TAD units** nested within them.
+
+                        This is utilized in tumor subtyping in an emerging field called **3D epigenomics.**
+
+                -   **Proteomic subtyping**: Based on **protein** expression levels.
+
+                -   **Transcriptomic subtyping**: Based on **RNA** expression levels.
+
+        -   The **2010 paper** is specifically the paper titled **"Integrated Genomic Analysis Identifies Clinically Relevant Subtypes of Glioblastoma Characterized by Abnormalities in PDGFRA, IDH1, EGFR, and NF1"** by **Verhaak et al.**, which was the **original paper that classified transcriptome profiles of GBM tumors into 4 distinct clusters**. This paper specifically used **transcriptomic profiling** as the **primary** classification, then validated their findings with **genomic** and **epigenomic** subtyping, which revealed that the tumors had **distinct molecular signatures in the DNA level as well**, not just in the RNA level.
+
+-   **Attaches gene metadata**
+
+    -   It maps each row to its Ensembl ID, gene symbol, biotype, and genomic coordinates from the GENCODE reference that was used during alignment.
+
+The output is a **SummarizedExperiment object**, which has all three components linked together in one structured container. The `unstranded` column is extracted **later**.
+
+```{r}
+#| label: create_summarized_experiment_object
+#| cache: true
+
+
+gc()  # free unused memory (i.e. garbage collect)
+
+# create SE object
+se <- GDCprepare(
+  query = query_primary,
+  directory = "../01_data/01_raw/01_samples"
+)
+
+gc()  # free unused memory (i.e. garbage collect)
+
+cat("SummarizedExperiment object loaded successfully\n")
+cat("Genes:", nrow(se), "\n")
+cat("Samples:", ncol(se), "\n")
+```
+
+### 2.3. Inspect `SummarizedExperiment` Object
+
+#### 2.3.1. Inspect Object Structure
+
+```{r}
+#| label: inspect_se_object
+
+
+cat("SummarizedExperiment object structure:\n")
+cat("Genes (rows):", nrow(se), "\n")
+cat("Samples (cols):", ncol(se), "\n\n")
+
+cat("Available assays:\n")
+print(assayNames(se))
+
+cat("\nTumor subtype info columns:\n")
+print(colnames(colData(se)))
+```
+
+#### 2.3.2. Inspect Tumor Subtypes
+
+In the human body, the development of tissue/cells undergoes these stages:
+
+-   **Totipotent stem cell**
+
+    -   Can differentiate into **ANY type of cell, including extra-embryonic cells** such as the placenta, amnion (i.e. membrane of amnionic sac), and umbilical cord cells.
+
+    -   **Only found in embryo**, from **fertilization** to the **4-cell stage**
+
+    -   Divides asymmetrically to form **pluripotent stem cell**
+
+-   **Pluripotent stem cell**
+
+    -   Can differentiate into **ANY type of cell, EXCEPT extra-embryonic cells**.
+
+    -   Slightly more prevalent and **longer lasting** than totipotent stem cells
+
+    -   These are the cells used in embryonic development analysis, often called **human Embryonic Stem Cells (hESC)**
+
+    -   This is the stage achieved when making stem cells artificially by **reversing the growth** of the sampled **adult human skin cells**. Such type of pluripotent cells are known as **induced Pluripotent Stem Cells (iPSC).**
+
+    -   Divides asymmetrically to form **multipotent stem cells**
+
+-   **Multipotent stem cell**
+
+    -   Can differentiate into ANY type of cell **within the same cell family**
+
+    -   Present in **adult human body**
+
+    -   Divides asymmetrically to form **progenitor cells.**
+
+-   **Progenitor stem cell**
+
+    -   Can differentiate into only **ONE type of cell**, i.e. the **mature cell itself**.
+
+    -   **Exceptions** exist where some progenitor cells are genuinely the last stage before mature cells, yet are **multipotent**. However, their multipotency is **lineage-restricted**, i.e. such progenitor cells can give rise to multiple cell types **within its particular lineage**, not just any type of cell.
+
+        -   E.g. **glial progenitor cell**, aka glioblast, gives rise to mature astrocytes, oligodendrocytes, AND ependymal cells.
+
+        **Note: Microglia**, however, **do NOT develop from glial progenitor cells**. Instead, they develop from a sp**ecific type of cell** found **only in embryonic stages**, called **erythromyeloid progenitor (EMP) cells**.
+
+        -   These cells are **not named after the adult/normal hematopoietic cell lineages** that are myeloid and lymphoid with their subtypes; they are quite simply named so because they produce the **primitive RBC** (which are nucleated) and **primitive macrophages**, before **disappearing forever**.
+
+        -   Those **macrophages** are what then **migrate into the developing brain** to become **microglia**, eventually getting **sealed there forever** due to the formation of the **blood brain barrier.**
+
+The **suffix '-blast'** in cell names such as retinoblast, glioblast, etc. always denotes **two things**:
+
+-   that the cell is **rapidly dividing**, and
+
+-   that the cell is **undifferentiated**, i.e. it is **not a mature cell** of any type
+
+The suffix therefore has **nothing to do with cellular potency**. The two concepts are simply closely related.
+
+Additionally, since the **cell type is specified in such names** (e.g. **glio**blast denotes that it develops into a mature **glial** cell), it is obvious that blast cells are either **multipotent** stem cells or **progenitor** cells.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+The human body has only 4 primary types of tissue:
+
+-   **Muscular tissue**
+
+    -   Differentiates from **myoblasts**, originating from the **mesoderm**.
+
+    -   The GRN that drives **myoblast differentiation into muscle cells** is called the **myogenic GRN**.
+
+-   **Epithelial tissue**
+
+    -   Differentiates from **epithelial progenitors**. **Most** epithelial tissue originates from the **ectoderm (e.g. skin)** and **endoderm (e.g. gut lining, lung epithelium)**, with **minor** contributions from the **mesoderm**.
+    -   The GRN that drives **epithelial progenitor differentiation** is called the **epithelial GRN**.
+
+-   **Connective tissue**
+
+    -   Differentiates from **mesenchymal stem cells (MSCs)**, originating **primarily** from the **mesoderm**, with additional contributions from **neural crest cells** which are themselves **ectoderm-derived**.
+    -   The GRN that drives **MSC differentiation into connective tissue** is called the **mesenchymal GRN.**
+
+-   **Nervous tissue**
+
+    -   Differentiates from **neural progenitor cells,** originating from the **ectoderm**.
+    -   The **initial** commitment of **neural progenitors toward a neuronal fate** is driven by the **proneural GRN**. This is a **subset of the broader neural differentiation GRN** that governs the **full spectrum** of nervous tissue development.
+
+------------------------------------------------------------------------
+
+The human nervous system consists of the following hierarchy:
+
+-   **Central Nervous System (CNS)**
+
+    -   **Brain**
+
+    -   **Spinal Cord**
+
+-   **Peripheral Nervous System (PNS)**
+
+    -   **Afferent (sensory) PNS**: Afferent neurons, which are neurons that bring sensory data from the body to the CNS (e.g., feeling a hot stove).
+
+    -   **Efferent (motor) PNS**: Efferent neurons, which are neurons that carry signals from the CNS to muscles and organs.
+
+        -   **Somatic Nervous System (SNS)**: **Voluntary** control; **sends signals to skeletal muscles** (e.g. moving the limbs).
+
+        -   **Autonomic Nervous System (ANS)**: **Involuntary** control; manages all **internal organs, glands, smooth muscles**, etc. The **Vagus** nerve, aka **Cranial Nerve 10 (CN-X)**, is the main highway for signals here.
+
+            -   **Sympathetic Nervous System**: Fight or flight response, triggered by **spinal sympathetic nerves** and adrenaline. **Vagus nerve activity is suppressed**.
+
+            -   **Parasympathetic Nervous System**: Rest and digest response, triggered by increased vagus nerve activity. The vagus nerve **directly** innervates:
+
+                -   **Heart**: It directly innervates the Si**noAtrial (SA) and AtrioVentricular (AV) nodes**, regulating heart rate
+
+                    -   **SA Node**: A **small patch of cells** on the **upper wall of the right atrium** that generates **regular electrical impulses**, causing both **atria to contract** and fill the ventricles with blood.
+
+                    -   **AV Node**: A **similar patch of cells** on the **atrial septum** that **directs the SA node's signal to both ventricles** via the Bundle of His and Purkinje Fibres, causing them to **contract and pump blood** to the lungs and rest of the body.
+
+                -   **Respiratory organs**: It directly innervates the pharynx, larynx, vocal cords, lungs, diaphragm, and intercostal muscles.
+
+                -   **Digestive organs**: It directly innervates the esophagus, stomach, stomach sphincters, small intestine, liver, pancreas, gallbladder, and spleen.
+
+Looking at the **types of cells** found in each subsystem:
+
+-   **CNS**
+
+    -   **Neurons**: Main nerve cells that carry electrical impulses.
+
+    -   **Glial cells**: Secondary cells that maintain and nourish neuron structure and function.
+
+        -   **Astrocytes**: They act as maintenance cells for neurons.
+
+            -   They **tightly regulate the blood-brain barrier (BBB)** for essential molecules.
+
+            -   They **ingest glucose** molecules, digest them into **lactate**, then release the lactate into the **interneuronal fluid** for **consumption by neurons.**
+
+            -   They also maintain **synaptic homeostasis** through two mechanisms:
+
+                -   **Actively reabsorbing excess neurotransmitters** (especially glutamate) from the synaptic cleft to prevent chemical imbalance and overstimulation of the postsynaptic neuron
+
+                -   **Rapidly absorbing excess K⁺ ions released by firing neurons** and redistributing them away via gap junctions with **neighboring astrocytes**, preventing local K⁺ accumulation from accidentally triggering voltage-gated channels on surrounding neurons.
+
+        -   **Oligodendrocytes**: Stretch and wrap around neuron axons to form the **myelin sheath,** with **small gaps** at regular intervals called **Nodes of Ranvier**. This speeds up electrical impulse travel via **saltatory conduction** (*Latin* saltare: to jump, as in across nodes in this case). The **myelin insulates the axon** between nodes, forcing the **action potential to fire only at nodes**. Each node's depolarization to +40mV **pushes positive charge** through the axoplasm to the next node via **electrostatic repulsion** of existing ions, raising its membrane potential to the -55mV threshold and **triggering the next action potential** there. This is effectively jumping node to node rather than regenerating continuously along the entire axon length.
+
+        -   **Ependymal cells**: Line the **ventricles of the brain** and the **central canal of the spinal cord**. They **produce cerebrospinal fluid (CSF)** and are covered in **cilia** that continuously beat to **circulate the CSF throughout the ventricular system and subarachnoid space**. CSF acts as a **hydraulic cushion** protecting the brain from mechanical shock, as well as a **flushing system that removes metabolic waste** products from the CNS **primarily during sleep**, via the **glymphatic** system where CSF flushes through **channels surrounding blood vessels.**
+
+        -   **Microglia**: Highly specialized and adaptable immune cells of the CNS.
+
+-   **PNS**
+
+    **Structurally identical to the CNS** but with **two** key cell type differences:
+
+    -   **Satellite cells** perform the functions of **astrocytes**, forming a tight physical barrier and managing the microenvironment around **ganglia**.
+
+    -   **Schwann cells** perform the functions of **oligodendrocytes**, myelinating the axons.
+
+    The PNS is organized into **nerves** (collections of axons) and **ganglia** (clusters of nerve cell bodies grouped into a confined structure). Ganglia are of **two** types:
+
+    -   **Sensory ganglia**: **Long axons from sensory organs** carry impulses directly into the **spinal cord**, where the respective cell bodies are clustered into ganglia called **dorsal root ganglia.** The same axons then exit the ganglia and travel up to the brain through the spinal cord..
+
+    -   **Motor ganglia**: For the **somatic** nervous system, **no ganglia** exist; nerves span directly from the spinal cord to the target skeletal muscle. The **autonomic** nervous system however **DOES** have ganglia, located **just outside the target organ**. Since only the autonomic nervous system has ganglia, **motor ganglia are also called autonomic ganglia.\
+        Autonomic ganglia** are essentially **collections of synapses**; preganglionic neurons arriving from the spinal cord synapse onto postganglionic neurons here that transfer the signal using **acetylcholine** (an **excitatory** neurotransmitter), and the postganglionic neurons then innervate the target organ directly.
+
+        **Note**: **Acetylcholine** is the primary excitatory neurotransmitter in the **PNS**, while **glutamate** is the primary excitatory neurotransmitter in **CNS**.
+
+------------------------------------------------------------------------
+
+------------------------------------------------------------------------
+
+**GBM, or GlioBlastoma Multiforme**, is a type of **malignant tumor of glial cells**. More specifically, it is the malignant tumor of **mature glial cells** whose DNA accumulated sufficient mutations to **dedifferentiate back into a blast-like state**, which begins **multiplying and mutating rapidly**.
+
+The **multiforme** title refers to its striking **histological heterogeneity**: under the microscope, **GBM** tumors show a **chaotic mixture** of cell morphologies, necrotic regions, and hemorrhage, unlike **most cancers** which appear more **uniform**.
+
+Across numerous GBM tumor samples, **Verhaak et al. (2010)** performed **unsupervised clustering on the transcriptomes** and discovered **4 distinct clusters**, which they verified against genomic and epigenomic data that further confirmed their findings. The 4 clusters are:
+
+-   **Proneural**: Tumors with the transcriptomic signature of the **proneural GRN**, the same GRN that drives **neural stem cell differentiation** in healthy tissue.
+
+-   **Mesenchymal**: Tumors with the transcriptomic signature of the **mesenchymal GRN**, the same GRN that drives **mesenchymal stem cells to differentiate into connective tissue**.
+
+-   **Classical**: Tumors with a distinct transcriptomic signature characterized primarily by **aggressive EGFR (Epidermal Growth Factor Receptor) amplification** and **neural stem cell-like gene expression.**
+
+-   **Neural**: Tumors with the transcriptomic signature of **healthy mature neurons**. This subtype is heavily **disregarded** today and is instead considered to reflect **healthy brain tissue** that contaminated the tumor samples during collection.
+
+```{r}
+#| label: inspect_tumor_subtypes
+
+
+cat("GBM tumor subtypes:\n")
+print(table(colData(se)$paper_Transcriptome.Subtype, useNA = "always"))
+
+cat("\n\nFirst few rows (samples) and columns (tumor subtype info):\n")
+colData(se) %>%
+  as.data.frame() %>%
+  .[1:5, 1:5] %>%
+  knitr::kable()
+```
+
+#### 2.3.3. Inspect Gene Metadata
+
+```{r}
+#| label: inspect_gene_metadata
+
+
+cat("Gene metadata columns:\n")
+print(colnames(rowData(se)))
+
+cat("\nFirst 6 rows of gene metadata:\n")
+head(rowData(se)) %>% as.data.frame() %>% knitr::kable()
+```
+
+## 3. Extract Raw Counts Matrix
+
+### 3.1. Extract Matrix
+
+```{r}
+#| label: extract_raw_counts_matrix
+
+
+# Extract unstranded raw counts matrix from the SE object
+counts_matrix <- assay(se, "unstranded")
+
+cat("Raw counts matrix extracted successfully\n")
+```
+
+### 3.2. Inspect Matrix
+
+```{r}
+#| label: inspect_raw_counts_matrix
+
+
+cat("Dimensions:", nrow(counts_matrix), "genes x", ncol(counts_matrix), "samples\n")
+cat("Class:", class(counts_matrix), "\n")
+cat("\nFirst 3 genes, first 3 samples:\n")
+counts_matrix[1:3, 1:3]
+
+cat("Count value summary:\n")
+cat("Min:", min(counts_matrix), "\n")
+cat("Max:", max(counts_matrix), "\n")
+cat("Zeros:", sum(counts_matrix == 0), "\n")
+cat("Zero fraction:", round(sum(counts_matrix == 0) / length(counts_matrix) * 100, 2), "%\n\n")
+
+cat("Library sizes (total counts per sample):\n")
+lib_sizes <- colSums(counts_matrix)
+cat("Min library size:", min(lib_sizes), "\n")
+cat("Max library size:", max(lib_sizes), "\n")
+cat("Median library size:", median(lib_sizes), "\n")
+```
+
+## 4. Save Data
+
+### 4.1. Save Raw Counts Matrix
+
+```{r}
+#| label: save_counts_matrix
+
+
+# Save counts matrix
+saveRDS(counts_matrix, "../01_data/02_processed/01_raw_counts_matrix.rds")
+cat("Saved: 01_raw_counts_matrix.rds\n")
+```
+
+### 4.2. Save Tumor Subtype Information
+
+```{r}
+#| label: save_tumor_subtype_info
+
+
+tumor_subtype_info <- colData(se) %>% as.data.frame()
+saveRDS(tumor_subtype_info, "../01_data/02_processed/02_tumor_subtype_info.rds")
+cat("Saved: 02_tumor_subtype_info.rds\n")
+```
+
+### 4.3. Save Gene Metadata
+
+```{r}
+#| label: save_gene_metadata
+
+
+# Save gene metadata — needed later for Ensembl ID to gene symbol mapping
+gene_metadata <- rowData(se) %>% as.data.frame()
+saveRDS(gene_metadata, "../01_data/02_processed/03_gene_metadata.rds")
+cat("Saved: 03_gene_metadata.rds\n")
+```
+
+## 5. Perform Sanity Checks
+
+```{r}
+#| label: perform_sanity_checks
+
+
+counts_exists      <- file.exists("../01_data/02_processed/01_raw_counts_matrix.rds")
+subtype_info_exists <- file.exists("../01_data/02_processed/02_tumor_subtype_info.rds")
+gene_meta_exists   <- file.exists("../01_data/02_processed/03_gene_metadata.rds")
+
+cat("Raw counts matrix saved:     ", ifelse(counts_exists, "✓", "✗"), "\n")
+cat("Tumor subtype info saved:    ", ifelse(subtype_info_exists, "✓", "✗"), "\n")
+cat("Gene metadata saved:         ", ifelse(gene_meta_exists, "✓", "✗"), "\n")
+
+if (counts_exists && subtype_info_exists && gene_meta_exists) {
+  cat("\nNotebook 02 complete — all outputs verified\n")
+} else {
+  cat("\nWARNING: One or more outputs missing\n")
+}
+```
