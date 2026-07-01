@@ -17,6 +17,7 @@
 02_notebooks/MANIFEST.txt
 .quarto/
 README.html
+*:Zone.Identifier
 
 # R session files
 .Rhistory
