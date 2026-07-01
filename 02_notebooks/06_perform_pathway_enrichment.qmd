@@ -1,0 +1,1237 @@
+---
+title: "Notebook 06: Perform Pathway Enrichment Analysis"
+author: "Shirshak Aryal"
+date: today
+format:
+  html:
+    code-overflow: scroll
+    embed-resources: true
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+Perform **Pathway Enrichment analysis** using the **DE results from Notebook 05**. The primary purpose of pathway enrichment analysis in this project is to **identify biological processes and signaling pathways that differ between Proneural (PN) and Mesenchymal (ME)** GBM subtypes, using two complementary approaches:
+
+-   **ORA (Over-Representation Analysis)**: tests **whether specific pathways are overrepresented** among genes already identified as significantly differentially expressed.
+-   **GSEA (Gene Set Enrichment Analysis)**: tests for **subtle, coordinated shifts in expression levels across the full set of genes**, without requiring a pre-filtered significant gene list.
+
+Both approaches are run using the **DE results from Notebook 05, i.e.** **DESeq2 (primary) and EdgeR (confirmatory) results independently**, and **only consensus results are retained**. That is, **only the pathways from DESeq2 lists are retained**, that too **only if they are also significant in EdgeR lists**.
+
+## 1. Import Libraries
+
+```{r}
+#| label: import_libraries
+
+
+library(tidyverse)        # data manipulation and visualisation
+library(patchwork)        # combine multiple ggplot2 plots into one canvas
+library(clusterProfiler)  # gene set enrichment and pathway analysis
+library(org.Hs.eg.db)     # human gene annotation database
+library(enrichplot)       # visualisation of enrichment results
+
+cat("\nLibraries loaded successfully\n")
+cat("tidyverse version:       ", as.character(packageVersion("tidyverse")), "\n")
+cat("patchwork version:       ", as.character(packageVersion("patchwork")), "\n")
+cat("clusterProfiler version: ", as.character(packageVersion("clusterProfiler")), "\n")
+cat("org.Hs.eg.db version:    ", as.character(packageVersion("org.Hs.eg.db")), "\n")
+cat("enrichplot version:      ", as.character(packageVersion("enrichplot")), "\n")
+```
+
+## 2. Load DE Results
+
+```{r}
+#| label: load_full_deseq2_and_edger_results
+
+
+deseq2_results <- readRDS("../04_results/05_de_analysis/01_deseq2_full_results.rds")
+edger_results <- readRDS("../04_results/05_de_analysis/02_edger_full_results.rds")
+
+cat("DESeq2 full results loaded:", nrow(deseq2_results), "genes\n")
+cat("EdgeR full results loaded:", nrow(edger_results), "genes\n")
+```
+
+## 3. Perform Pathway Enrichment Analysis
+
+Both ORA and GSEA are performed against **two pathway databases**:
+
+-   **GO:BP (Gene Ontology: Biological Process)**: a database maintained by the **GO Consortium** that annotates genes to **specific biological activities** such as glial cell differentiation, neural stem cell proliferation, apoptotic process, DNA repair, and so on.
+-   **KEGG (Kyoto Encyclopedia of Genes and Genomes)**: a database maintained by **Kyoto University** that maps genes to **known metabolic and signaling pathways** such as glioma development signaling, tumor suppressor signaling, and so on.
+
+Using both databases **ensures that findings are not an artifact of any single annotation system,** and allows **cross-validation of enriched biological themes** across two independently curated pathway catalogs.
+
+### 3.1. Perform ORA
+
+**Over-Representation Analysis (ORA)** tests **whether** **genes from a pre-defined, biologically-relevant set (i.e. a pathway)** **appear more often in a given gene list** than would be expected by chance.
+
+Here, the **input gene lists** are the **upregulated and downregulated DE gene lists derived from the intersection of DESeq2 and EdgeR results (from Notebook 05)**. For **each pathway in the database**, ORA essentially asks: "given how many genes are in **this pathway's gene list**, and how many genes are in **the input gene list**, is the **overlap** between the two **larger than random chance would predict?**" This produces a **p-value per pathway**, **corrected for multiple testing** using the **Benjamini-Hochberg method**.
+
+ORA is run **separately on DESeq2's and EdgeR's gene lists**, and **only consensus results are retained**. That is, **only the pathways from DESeq2 lists are retained**, that too **only if they are also significant in EdgeR lists**.
+
+#### 3.1.1. Split DE Results Into Upregulated And Downregulated Genes
+
+```{r}
+#| label: split_de_results_into_upregulated_and_downregulated_gene_lists_ora
+
+
+# split DESeq2 full results into upregulated and downregulated gene lists
+# consistent with NB05's significance thresholds: padj < 0.05, |log2FC| > 1
+deseq2_up   <- deseq2_results %>%
+  filter(padj < 0.05, log2FoldChange > 1) %>%
+  rownames_to_column(var = "ensembl_id") %>%
+  pull(ensembl_id)
+
+deseq2_down <- deseq2_results %>%
+  filter(padj < 0.05, log2FoldChange < -1) %>%
+  rownames_to_column(var = "ensembl_id") %>%
+  pull(ensembl_id)
+
+
+
+# split EdgeR full results into upregulated and downregulated gene lists
+# consistent with NB05's significance thresholds: padj < 0.05, |log2FC| > 1
+edger_up   <- edger_results %>%
+  filter(FDR < 0.05, logFC > 1) %>%
+  rownames_to_column(var = "ensembl_id") %>%
+  pull(ensembl_id)
+
+edger_down <- edger_results %>%
+  filter(FDR < 0.05, logFC < -1) %>%
+  rownames_to_column(var = "ensembl_id") %>%
+  pull(ensembl_id)
+
+
+
+cat("DESeq2 upregulated genes:  ", length(deseq2_up), "\n")
+cat("DESeq2 downregulated genes:", length(deseq2_down), "\n")
+cat("EdgeR upregulated genes:   ", length(edger_up), "\n")
+cat("EdgeR downregulated genes: ", length(edger_down), "\n")
+```
+
+#### 3.1.2. Enrich Using GO:BP Database
+
+##### 3.1.2.1. Enrich Upregulated And Downregulated Genes
+
+```{r}
+#| label: enrich_upregulated_and_downregulated_genes_ora_gobp
+
+
+# strip Ensembl version suffixes before enrichment
+deseq2_up_ids   <- gsub("\\..*", "", deseq2_up)
+deseq2_down_ids <- gsub("\\..*", "", deseq2_down)
+edger_up_ids    <- gsub("\\..*", "", edger_up)
+edger_down_ids  <- gsub("\\..*", "", edger_down)
+
+
+
+# ORA on DESeq2 upregulated genes
+ora_deseq2_up_go <- enrichGO(
+  gene          = deseq2_up_ids,  # DESeq2 upregulated gene list
+  OrgDb         = org.Hs.eg.db,   # human gene annotation database
+  keyType       = "ENSEMBL",      # gene identifiers are in Ensembl ID format
+  ont           = "BP",           # test against the GO Biological Process (BP) database
+  
+  pAdjustMethod = "BH",           # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,           # only consider p-values < 0.05 as significant
+  
+  readable      = TRUE            # convert Ensembl IDs to gene symbols in the output
+)
+
+# ORA on EdgeR upregulated genes
+ora_edger_up_go <- enrichGO(
+  gene          = edger_up_ids,   # EdgeR upregulated gene list
+  OrgDb         = org.Hs.eg.db,   # human gene annotation database
+  keyType       = "ENSEMBL",      # gene identifiers are in Ensembl ID format
+  ont           = "BP",           # test against the GO Biological Process (BP) database
+  
+  pAdjustMethod = "BH",           # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,           # only consider p-values < 0.05 as significant
+  
+  readable      = TRUE            # convert Ensembl IDs to gene symbols in the output
+)
+
+
+
+
+# ORA on DESeq2 downregulated genes
+ora_deseq2_down_go <- enrichGO(
+  gene          = deseq2_down_ids,  # DESeq2 downregulated gene list
+  OrgDb         = org.Hs.eg.db,     # human gene annotation database
+  keyType       = "ENSEMBL",        # gene identifiers are in Ensembl ID format
+  ont           = "BP",             # test against the GO Biological Process (BP) database
+  
+  pAdjustMethod = "BH",             # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,             # only consider p-values < 0.05 as significant
+  
+  readable      = TRUE              # convert Ensembl IDs to gene symbols in the output
+)
+
+# ORA on EdgeR downregulated genes
+ora_edger_down_go <- enrichGO(
+  gene          = edger_down_ids,  # EdgeR downregulated gene list
+  OrgDb         = org.Hs.eg.db,    # human gene annotation database
+  keyType       = "ENSEMBL",       # gene identifiers are in Ensembl ID format
+  ont           = "BP",            # test against the GO Biological Process (BP) database
+  
+  pAdjustMethod = "BH",            # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,            # only consider p-values < 0.05 as significant
+  
+  readable      = TRUE             # convert Ensembl IDs to gene symbols in the output
+)
+
+
+
+cat("ORA GO:BP results:\n")
+cat("DESeq2 upregulated:   ", nrow(ora_deseq2_up_go@result %>% filter(p.adjust < 0.05)), "significant terms\n")
+cat("EdgeR upregulated:    ", nrow(ora_edger_up_go@result %>% filter(p.adjust < 0.05)), "significant terms\n\n")
+cat("DESeq2 downregulated: ", nrow(ora_deseq2_down_go@result %>% filter(p.adjust < 0.05)), "significant terms\n")
+cat("EdgeR downregulated:  ", nrow(ora_edger_down_go@result %>% filter(p.adjust < 0.05)), "significant terms\n")
+```
+
+##### 3.1.2.2. Extract Consensus Results
+
+```{r}
+#| label: extract_consensus_results_ora_gobp
+
+
+# intersect by pathway ID, retain DESeq2's full result rows as primary statistics
+ora_consensus_up_go <- ora_deseq2_up_go@result %>%
+  filter(p.adjust < 0.05) %>%
+  filter(ID %in% (ora_edger_up_go@result %>% filter(p.adjust < 0.05) %>% pull(ID)))
+
+ora_consensus_down_go <- ora_deseq2_down_go@result %>%
+  filter(p.adjust < 0.05) %>%
+  filter(ID %in% (ora_edger_down_go@result %>% filter(p.adjust < 0.05) %>% pull(ID)))
+
+cat("Consensus ORA GO:BP terms before removing redundant ones:\n")
+cat("Upregulated:  ", nrow(ora_consensus_up_go), "\n")
+cat("Downregulated:", nrow(ora_consensus_down_go), "\n")
+
+
+
+# remove redundant GO terms using semantic similarity
+set.seed(42)
+ora_consensus_up_go   <- simplify(
+  new("enrichResult", result = ora_consensus_up_go, ontology = "BP")
+)@result
+
+set.seed(42)
+ora_consensus_down_go <- simplify(
+  new("enrichResult", result = ora_consensus_down_go, ontology = "BP")
+)@result
+
+cat("\nConsensus ORA GO:BP terms after removing redundant ones:\n")
+cat("Upregulated:  ", nrow(ora_consensus_up_go), "\n")
+cat("Downregulated:", nrow(ora_consensus_down_go), "\n")
+
+cat("\nTop 10 consensus upregulated GO:BP terms:\n")
+ora_consensus_up_go %>%
+  arrange(p.adjust) %>%
+  dplyr::select(Description, p.adjust, Count) %>%
+  mutate(p.adjust = formatC(p.adjust, format = "e", digits = 2)) %>%
+  head(10) %>%
+  knitr::kable()
+
+cat("\nTop 10 consensus downregulated GO:BP terms:\n")
+ora_consensus_down_go %>%
+  arrange(p.adjust) %>%
+  dplyr::select(Description, p.adjust, Count) %>%
+  mutate(p.adjust = formatC(p.adjust, format = "e", digits = 2)) %>%
+  head(10) %>%
+  knitr::kable()
+```
+
+##### 3.1.2.3. Plot Consensus Results
+
+```{r}
+#| label: plot_consensus_results_ora_gobp
+#| fig-width: 10
+#| fig-height: 5
+
+
+# convert into dotplot()-compatible objects
+ora_consensus_up_go_enrich <- new("enrichResult", result = ora_consensus_up_go)
+ora_consensus_down_go_enrich <- new("enrichResult", result = ora_consensus_down_go)
+
+
+
+# plot top 10 consensus upregulated GO:BP terms
+ora_consensus_up_go_plot   <- dotplot(
+  ora_consensus_up_go_enrich,
+  showCategory = 10,
+  title = "ORA Consensus GO:BP Pathways: Upregulated in ME"
+) +
+theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+
+# plot top 10 consensus downregulated GO:BP terms
+ora_consensus_down_go_plot   <- dotplot(
+  ora_consensus_down_go_enrich,
+  showCategory = 10,
+  title = "ORA Consensus GO:BP Pathways: Downregulated in ME"
+) +
+theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+
+
+ora_consensus_up_go_plot
+ora_consensus_down_go_plot
+```
+
+#### 3.1.3. Enrich Using KEGG Database
+
+##### 3.1.3.1. Enrich Upregulated And Downregulated Genes
+
+```{r}
+#| label: enrich_upregulated_and_downregulated_genes_ora_kegg
+
+
+# strip Ensembl version suffixes before enrichment
+deseq2_up_ids   <- gsub("\\..*", "", deseq2_up)
+deseq2_down_ids <- gsub("\\..*", "", deseq2_down)
+edger_up_ids    <- gsub("\\..*", "", edger_up)
+edger_down_ids  <- gsub("\\..*", "", edger_down)
+
+
+# convert Ensembl IDs to Entrez IDs for KEGG (enrichKEGG requires Entrez IDs)
+deseq2_up_entrez   <- bitr(
+    deseq2_up_ids,
+    fromType = "ENSEMBL",
+    toType = "ENTREZID",
+    OrgDb = org.Hs.eg.db
+  ) %>% 
+  distinct(ENTREZID, .keep_all = TRUE) %>%  # keep only first occurences of Entrez IDs
+  pull(ENTREZID)                            # extract Entrez ID column
+
+deseq2_down_entrez <- bitr(
+    deseq2_down_ids,
+    fromType = "ENSEMBL",
+    toType = "ENTREZID",
+    OrgDb = org.Hs.eg.db
+  ) %>% 
+  distinct(ENTREZID, .keep_all = TRUE) %>%  # keep only first occurences of Entrez IDs
+  pull(ENTREZID)                            # extract Entrez ID column
+
+edger_up_entrez    <- bitr(
+    edger_up_ids,
+    fromType = "ENSEMBL",
+    toType = "ENTREZID",
+    OrgDb = org.Hs.eg.db
+  ) %>% 
+  distinct(ENTREZID, .keep_all = TRUE) %>%  # keep only first occurences of Entrez IDs
+  pull(ENTREZID)                            # extract Entrez ID column
+
+edger_down_entrez  <- bitr(
+    edger_down_ids,
+    fromType = "ENSEMBL",
+    toType = "ENTREZID",
+    OrgDb = org.Hs.eg.db
+  ) %>% 
+  distinct(ENTREZID, .keep_all = TRUE) %>%  # keep only first occurences of Entrez IDs
+  pull(ENTREZID)                            # extract Entrez ID column
+
+
+
+
+# ORA on DESeq2 upregulated genes
+ora_deseq2_up_kegg <- enrichKEGG(
+  gene          = deseq2_up_entrez,  # DESeq2 upregulated gene list (Entrez IDs)
+  organism      = "hsa",             # organism is human (hsa=Homo sapiens)
+  
+  pAdjustMethod = "BH",              # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05               # only consider p-values < 0.05 as significant
+)
+
+# convert Entrez IDs to gene symbols in the output
+ora_deseq2_up_kegg <- setReadable(ora_deseq2_up_kegg, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+
+
+
+# ORA on DESeq2 downregulated genes
+ora_deseq2_down_kegg <- enrichKEGG(
+  gene          = deseq2_down_entrez,  # DESeq2 downregulated gene list (Entrez IDs)
+  organism      = "hsa",               # organism is human (hsa=Homo sapiens)
+  
+  pAdjustMethod = "BH",                # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05                 # only consider p-values < 0.05 as significant
+)
+
+# convert Entrez IDs to gene symbols in the output
+ora_deseq2_down_kegg <- setReadable(ora_deseq2_down_kegg, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+
+
+
+
+# ORA on EdgeR upregulated genes
+ora_edger_up_kegg <- enrichKEGG(
+  gene          = edger_up_entrez,  # EdgeR upregulated gene list (Entrez IDs)
+  organism      = "hsa",            # organism is human (hsa=Homo sapiens)
+  
+  pAdjustMethod = "BH",             # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05              # only consider p-values < 0.05 as significant
+)
+
+# convert Entrez IDs to gene symbols in the output
+ora_edger_up_kegg <- setReadable(ora_edger_up_kegg, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+
+
+
+
+# ORA on EdgeR downregulated genes
+ora_edger_down_kegg <- enrichKEGG(
+  gene          = edger_down_entrez,    # EdgeR downregulated gene list (Entrez IDs)
+  organism      = "hsa",                # organism is human (hsa=Homo sapiens)
+  
+  pAdjustMethod = "BH",                 # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05                  # only consider p-values < 0.05 as significant
+)
+
+# convert Entrez IDs to gene symbols in the output
+ora_edger_down_kegg <- setReadable(ora_edger_down_kegg, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+
+
+
+cat("ORA KEGG results:\n")
+cat("DESeq2 upregulated:   ", nrow(ora_deseq2_up_kegg@result   %>% filter(p.adjust < 0.05)), "significant terms\n")
+cat("DESeq2 downregulated: ", nrow(ora_deseq2_down_kegg@result %>% filter(p.adjust < 0.05)), "significant terms\n\n")
+cat("EdgeR upregulated:    ", nrow(ora_edger_up_kegg@result    %>% filter(p.adjust < 0.05)), "significant terms\n")
+cat("EdgeR downregulated:  ", nrow(ora_edger_down_kegg@result  %>% filter(p.adjust < 0.05)), "significant terms\n")
+```
+
+##### 3.1.3.2. Extract Consensus Results
+
+```{r}
+#| label: extract_consensus_results_ora_kegg
+
+
+# intersect by pathway ID, retain DESeq2's full result rows as primary statistics
+ora_consensus_up_kegg <- ora_deseq2_up_kegg@result %>%
+  filter(p.adjust < 0.05) %>%
+  filter(ID %in% (ora_edger_up_kegg@result %>% filter(p.adjust < 0.05) %>% pull(ID)))
+
+ora_consensus_down_kegg <- ora_deseq2_down_kegg@result %>%
+  filter(p.adjust < 0.05) %>%
+  filter(ID %in% (ora_edger_down_kegg@result %>% filter(p.adjust < 0.05) %>% pull(ID)))
+
+cat("Consensus ORA KEGG terms:\n")
+cat("Upregulated:  ", nrow(ora_consensus_up_kegg), "\n")
+cat("Downregulated:", nrow(ora_consensus_down_kegg), "\n")
+
+cat("\nTop 10 consensus upregulated KEGG terms:\n")
+ora_consensus_up_kegg %>%
+  arrange(p.adjust) %>%
+  dplyr::select(Description, p.adjust, Count) %>%
+  mutate(p.adjust = formatC(p.adjust, format = "e", digits = 2)) %>%
+  head(10) %>%
+  knitr::kable()
+
+cat("\nTop 10 consensus downregulated KEGG terms:\n")
+ora_consensus_down_kegg %>%
+  arrange(p.adjust) %>%
+  dplyr::select(Description, p.adjust, Count) %>%
+  mutate(p.adjust = formatC(p.adjust, format = "e", digits = 2)) %>%
+  head(10) %>%
+  knitr::kable()
+```
+
+##### 3.1.3.3. Plot Consensus Results
+
+```{r}
+#| label: plot_consensus_results_ora_kegg
+#| fig-width: 10
+#| fig-height: 5
+
+
+# convert into dotplot()-compatible objects
+ora_consensus_up_kegg_enrich_result <- new("enrichResult", result = ora_consensus_up_kegg)
+ora_consensus_down_kegg_enrich_result <- new("enrichResult", result = ora_consensus_down_kegg)
+
+
+
+# plot top 10 consensus upregulated KEGG terms
+ora_consensus_up_kegg_plot   <- dotplot(
+  ora_consensus_up_kegg_enrich_result,
+  showCategory = 10,
+  title = "ORA Consensus KEGG Pathways: Upregulated in ME"
+) +
+theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+
+# plot top 10 consensus downregulated KEGG terms
+ora_consensus_down_kegg_plot   <- dotplot(
+  ora_consensus_down_kegg_enrich_result,
+  showCategory = 10,
+  title = "ORA Consensus KEGG Pathways: Downregulated in ME"
+) +
+theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+
+
+ora_consensus_up_kegg_plot
+ora_consensus_down_kegg_plot
+```
+
+#### 3.1.3. Combine ORA Consensus Results Plots
+
+```{r}
+#| label: combine_ora_consensus_results_plots
+#| fig-width: 20
+#| fig-height: 10
+
+
+ora_consensus_plots <- (ora_consensus_up_go_plot | ora_consensus_up_kegg_plot) /
+                     (ora_consensus_down_go_plot | ora_consensus_down_kegg_plot) +
+  plot_annotation(
+    title    = "ORA Consensus Pathways: GO:BP And KEGG",
+    subtitle = "Upregulated (top) and Downregulated (bottom) in Mesenchymal vs Proneural GBM",
+    theme    = theme(
+      plot.title    = element_text(hjust = 0.5, face = "bold", size = 18),
+      plot.subtitle = element_text(hjust = 0.5, size = 14)
+    )
+  )
+
+ora_consensus_plots
+```
+
+The ORA results show **two clear, opposing biological signatures** consistent with known GBM subtype biology:
+
+**Upregulated in Mesenchymal**: Dominated by a **mesenchymal/wound-healing program**, encompassing **immune infiltration, cytokine signaling, and ECM remodeling**.
+
+-   **GO:BP**: **Immune cell recruitment and proliferation, as well as tissue remodeling programs** are active in Mesenchymal tumors.
+
+    -   **Leukocyte migration**: **White blood cells** (aka leukocytes) traveling through tissue.
+
+    -   **Cell Chemotaxis**: **Cell movement directed by chemical gradient**. Cells detect **high** **concentration** of **specific chemicals** (called **chemokines**) and move **towards** them.
+
+    -   **Myeloid cell activation**: The word 'activation' here refers to **immune activation**. So even though the myeloid lineage includes **red blood cells and platelets**, they are **not** **immune cells** and hence **excluded**. Hence, **immune cells of myeloid lineage** are:
+
+        -   **Granulocytes**: **Innate immunity**
+
+            -   **Eosinophils**: Release granules filled with highly **caustic, tissue-damaging proteins** to neutralize **large parasites**.
+
+            -   **Basophils**:
+
+                -   Trigger **inflammatory responses** by releasing granules filled with:
+
+                    -   **Histamine**: increases blood flow to the site
+
+                    -   **Heparin**: prevents blood clotting
+
+                -   **Defend against parasites**, similar to eosinophils
+
+                -   **Amplify allergic reactions**: **IgE antibodies** on basophil surface, upon detection of an allergen, trigger massive **degranulation**. This is the **cause of anaphylaxis** in severe allergies.
+
+            -   **Neutrophils**:
+
+                -   Most **abundant** granulocytes
+
+                -   **Primary** first responders
+
+                -   Neutralize **pathogens** by either:
+
+                    -   **Phagocytosis**: **Engulfing** pathogens and then **digesting** **them via degranulation**
+
+                    -   **NETs**: Releasing their DNA strands onto the pathogen to trap it, called **NET (Neutrophil Extracellular Trap)**.
+
+        -   **Mast cells**: **Tissue-resident** cells functionally identical to **basophils**. **Innate immunity**.
+
+        -   **Agranulocytes**
+
+            -   **Monocytes**:
+
+                -   **Macrophages:** Engulf and digest pathogens (i.e. **phagocytosis**). **Innate Immunity.**
+
+                -   **Dendritic cells:**
+
+                    -   **APCs**: They are **Antigen Presenting Cells**, i.e. they **capture and process antigens**, then **'present' them to T cells** to initiate a **specific long-term immune memory**
+
+                    -   **Bridge** between **innate and adaptive** immunity.
+
+        Myeloid cell activation within GOBP specifically refers to activation of cells for **innate immunity**, which essentially is almost **all myeloid leukocytes**.
+
+    -   **Lymphocyte proliferation/differentiation**: Contrasting with myeloid activation, these terms reflect the proliferation and maturation of **adaptive immune cells**, which are **exclusively lymphocytes i.e. T and B cells**.
+
+    -   **Extracellular matrix (ECM) organization**: **Mesenchymal cells** are, by definition, **multipotent stem** cells that **differentiate into** **connective tissue cells.** **ECM organization** **here** means **actively remodeling and restructuring the tissue scaffold** (depositing new matrix proteins, degrading old ones, crosslinking fibers), which is a **defining activity of mesenchymal-lineage cells**, not something all cells do equally. Its **appearance here** is the **most direct molecular confirmation** that **ME tumor cells** have adopted a **mesenchymal transcriptional identity**, **not just an incidental immune signal**.
+
+-   **KEGG**: Mesenchymal tumors show **active cytokine signaling** and **innate immune effector mechanisms (complement cascades, phagocytosis, TNF/NF-κB).**
+
+    -   **Cytokine-cytokine receptor interaction**: The **primary communication network** of the **immune system.** It involves **cells releasing a signaling protein (cytokine)** and another cell catching it with a **specific molecular glove (receptor)** to trigger a reaction.
+
+    -   **TNF signaling**: **TNF-α is a cytokine** secreted mainly by **activated macrophages**, which **binds with receptors of any cell surface** (not just blood cells) for **enabling NF-κB to enter the cell nucleus**. **NF-κB is a transcription factor** that enters the nucleus and **activates genes for:**
+
+        -   **Cytokine production**
+
+        -   **Immune cell recruitment**
+
+        -   **Anti-apoptotic survival pathways**
+
+    -   **Complement cascades**: The complement system is a **cascade of proteins that assists antibodies in neutralizing pathogens**. They do so in these ways:
+
+        -   **Opsonization**: **Coating pathogens with proteins** that **attract neutrophils/macrophages** for **phagocytosis** of pathogen
+
+        -   **Lysis**: Forming the **Membrane Attack Complex (MAC),** which **punctures pathogen membranes**.
+
+    -   **Phagocytosis**
+
+All of this reflects well-documented **characteristics of Mesenchymal GBM tumors**. What this means is:
+
+-   Bulk RNA-seq captures expression from the **entire tissue sample**, including **infiltrating immune cells alongside tumor cells**.
+
+-   **Immune infiltration** means **immune cells** from the bloodstream **physically migrate INTO the tumor tissue** and take up residence there.
+
+-   Hence the pathways seen here reflects a signal that comes **partly from the immune cells** and **partly from the tumor cells**.
+
+-   Taken together: **immune cell recruitment**, **cytokine signaling**, and **ECM remodeling** pathways collectively reflect an **active wound-healing-like program** in **Mesenchymal GBM**. In **normal tissue**, **wound healing** proceeds through **four consecutive phases**:
+
+    -   **Hemostasis:** **Blood starts to clot** around the injury site to quickly stop bleeding.
+
+    -   **Inflammation:** **Immune cells** present in the wound site/blood **kill pathogens** and **clear away dead tissue debris.**
+
+    -   **Proliferation:** **Fibroblasts** and **new blood vessels** **rapidly build and proliferate fresh, highly vascularized fleshy tissue** called **granulation tissue** to **close the wound gap**. The **cells in granulation tissue** are, like with all types of cells, [**held together by theirECM**]{.underline}, which at this point primarily has:
+
+        -   **Jelly-like soup**: The ECM contains **hyaluronic acid**, which is a **sugar chain** that **holds massive amounts of water.**
+
+        -   **Loose, thin collagen fibers**
+
+    -   **Tissue remodeling:** The **capillaries in the granulation tissue** are then **removed**, and the **loose, thin collagen fibers** are now **replaced** with **thick, tightly-packed collagen fibers,** hence **forming scar tissue.**
+
+    In **ME tumors,** a **pathologically distorted hybrid** of the **proliferation and tissue remodeling phases** is **permanently active.**
+
+    -   **Rigid fibrotic scaffold**: **Unlike** a **normal, organized scar**, the tumor **continuously pumps out dense collagen**. These fibers are **aggressively cross-linked** into a **rigid, highly stiffened matrix network**.
+
+    -   **Impaired, leaky blood vessels**: Simultaneously, the tumor **remains stuck in the proliferation phase's drive for new clrculation.** It **constantly forces** the **growth of new blood vessels**. Because this signal never turns off, **these vessels are structurally malformed, immature, and highly leaky**, causing **blood plasma and fluid to flood the surrounding tissue**.
+
+    -   **Trapped inflammation**: This **combination of a stiff, altered matrix and leaky blood vessels** causes the **inflammation phase** to become **permanently active.** **Immune cells easily escape the leaky vessels into the tumor**. Once outside, rather than passing through, they **interact with matrix components** (including fragmented hyaluronic acid), which itself **happens to be a known mechanism** that **activates inflammatory signaling** that **promotes their retention.** These infiltrating cells are **then reprogrammed by the tumor**, which **suppress anti-tumor immunity** and actively **promote tumor expansion**.
+
+    This results in the **formation of an inflamed, hardened, and highly leaky tissue mass** inside a brain environment that is **normally soft and delicate.** This **shows why ME tumors are so dangerous**, showing a phenomenon sometimes called the **"wound that never heals"** in cancer biology. The **immune infiltration and ECM signals** are therefore **not** **two** **separate** **findings** but **two components of the same underlying mesenchymal/wound-healing program** that defines the ME subtype.
+
+------------------------------------------------------------------------
+
+**Downregulated in Mesenchymal (i.e. upregulated in Proneural)**: Dominated by **neural differentiation** and **synaptic signaling** pathways.
+
+-   **GO:BP**: Proneural tumors **retain a neural development program**.
+
+    -   **Axonogenesis: Birth and extension of axons**. Indicates nerve wiring and growth.
+
+    -   **Synapse assembly**: The **physical construction of synapses**.
+
+    -   **CNS neuron differentiation**: Stem/precursor cells **maturing into neurons** within the **Central Nervous System (CNS)**.
+
+    -   **Axon guidance**: Process by which **neurons send out axons to navigate through the body** and establish precise connections with their **correct targets.**
+
+-   **KEGG**: Proneural tumors show **active neurotransmitter-based synaptic signaling machinery.**
+
+    -   **Glutamatergic synapse:** Molecular interactions governing synapses that use **glutamate**, the brain's **primary** **excitatory** **neurotransmitter.**
+
+    -   **Dopaminergic synapse**: Molecular interactions governing synapses that use **dopamine**, the brain's primary neuromodulator. I.e., unlike glutamate's rapid “on/off” signaling, dopamine **fine-tunes how neural circuits respond to other signals**.
+
+    -   **Synaptic vesicle cycle**: Process where synaptic vesicles **fill with neutotransmitters**, fuse with cell membrane to **dump them out**, and get **repurposed** by the neuron to repeat the process.
+
+This reflects the **neural stem cell-like transcriptomic identity characteristic of Proneural GBM.**
+
+The **alcoholism, lupus**, and **neutrophil extracellular trap (NET)** KEGG terms appearing in the **downregulated** list are **histone-gene artifacts as discussed in EDA,** not biologically meaningful in this context.
+
+------------------------------------------------------------------------
+
+### 3.2. Perform GSEA
+
+**Gene Set Enrichment Analysis (GSEA)** tests **whether genes belonging to a pre-defined pathway** tend to **cluster toward the top or bottom of a ranked gene list, rather than being scattered randomly** throughout it.
+
+Unlike ORA, **GSEA does not require a pre-split significant gene list**. Instead, **all genes are ranked by a continuous statistic** (here, the **signed** **DESeq2 Wald statistic** and, independently, the **signed EdgeR F-statistic**), and GSEA goes down the ranked list and computes an **enrichment score that peaks where pathway genes are most concentrated**. A **positive Normalized Enrichment Score (NES)** indicates the **pathway's genes cluster toward the top of the ranking (i.e. upregulated in ME),** while a **negative NES** indicates **clustering toward the bottom (i.e. downregulated in ME, upregulated in PN)**.
+
+GSEA is run **separately on DESeq2's and EdgeR's ranked lists**, and **only consensus results are retained**. That is, **only the pathways from DESeq2 lists are retained**, that too **only if they are also significant in EdgeR lists**.
+
+#### 3.2.1. Enrich Using GO:BP Database
+
+##### 3.2.1.1. Enrich Full DE Results
+
+GSEA requires a **ranked gene list**, which is prepared as follows:
+
+-   The **DESeq2 ranked gene list** is built using the **signed Wald statistic** (`stat` column from the full results), which is the **ratio of estimated log2 fold-change to standard error of each gene's expression levels**, reflecting effect size relative to estimation uncertainty (i.e. **signal-to-noise** ratio).
+
+-   The **EdgeR ranked gene list** is built using the **signed F-statistic** (`F` column from the full results, signed by `logFC` direction), which is the **ratio of between-group variance to within-group variance of each gene's expression levels**, reflecting the **proportion of a gene's total variance** driven by **true biological subtype differences** relative to **baseline residual noise within its subtype group.**
+
+```{r}
+#| label: enrich_full_de_results_gsea_gobp
+
+
+# build DESeq2 ranked gene list: named vector of signed Wald statistics
+# stat is already signed (positive = upregulated in ME, negative = downregulated in ME)
+
+deseq2_rank_vector <- deseq2_results %>%                  # DESeq2 full results
+  rownames_to_column(var = "ensembl_id") %>%              # convert rownames from results, i.e. Ensembl IDs, into values in a new column named "ensembl_id"
+  mutate(ensembl_id = gsub("\\..*", "", ensembl_id)) %>%  # strip version suffixes from Ensembl IDs
+  filter(!is.na(stat)) %>%                                # remove genes with NA statistic (e.g. outliers flagged by DESeq2)
+  arrange(desc(stat)) %>%                                 # sort descending for GSEA
+  dplyr::select(ensembl_id, stat) %>%                     # keep only gene ID and ranking statistic
+  deframe()                                               # convert to named numeric vector (Ensembl ID = name, stat = value)
+
+
+# build EdgeR ranked gene list: F-statistic signed by logFC direction
+edger_rank_vector <- edger_results %>%
+  rownames_to_column(var = "ensembl_id") %>%     # convert rownames from results, i.e. Ensembl IDs, into values in a new column named "ensembl_id"
+  mutate(
+    ensembl_id = gsub("\\..*", "", ensembl_id),  # strip version suffixes from Ensembl IDs
+    signed_F   = F * sign(logFC)                 # restore directionality to always-positive F-statistic
+  ) %>%
+  filter(!is.na(signed_F)) %>%                   # remove genes with NA statistic (e.g. outliers flagged by EdgeR)
+  arrange(desc(signed_F)) %>%                    # sort descending for GSEA
+  dplyr::select(ensembl_id, signed_F) %>%        # keep only gene ID and ranking statistic
+  deframe()                                      # convert to named numeric vector (Ensembl ID = name, stat = value)
+
+
+
+cat("DESeq2 rank vector length:", length(deseq2_rank_vector), "\n")
+cat("EdgeR rank vector length: ", length(edger_rank_vector), "\n")
+
+# GSEA on DESeq2 ranked list
+gsea_deseq2_go <- gseGO(
+  geneList      = deseq2_rank_vector,  # DESeq2 rank vector
+  OrgDb         = org.Hs.eg.db,        # human gene annotation database
+  keyType       = "ENSEMBL",           # gene identifiers are in Ensembl ID format
+  ont           = "BP",                # test against the GO Biological Process (BP) database
+  
+  pAdjustMethod = "BH",                # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,                # only consider p-values < 0.05 as significant
+  eps           = 0,                   # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  
+  verbose       = FALSE
+)
+
+# convert Ensembl IDs to gene symbols in the output
+gsea_deseq2_go <- setReadable(gsea_deseq2_go, OrgDb = org.Hs.eg.db, keyType = "ENSEMBL")
+
+
+
+# GSEA on EdgeR ranked list
+gsea_edger_go <- gseGO(
+  geneList      = edger_rank_vector,  # EdgeR rank vector
+  OrgDb         = org.Hs.eg.db,       # human gene annotation database
+  keyType       = "ENSEMBL",          # gene identifiers are in Ensembl ID format
+  ont           = "BP",               # test against the GO Biological Process (BP) database
+  
+  pAdjustMethod = "BH",               # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,               # only consider p-values < 0.05 as significant
+  eps           = 0,                   # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  
+  verbose       = FALSE
+)
+
+# convert Ensembl IDs to gene symbols in the output
+gsea_edger_go <- setReadable(gsea_edger_go, OrgDb = org.Hs.eg.db, keyType = "ENSEMBL")
+
+
+cat("\nGSEA GO:BP results:\n")
+cat("DESeq2 significant pathways:", nrow(gsea_deseq2_go@result %>% filter(p.adjust < 0.05)), "\n")
+cat("EdgeR significant pathways: ", nrow(gsea_edger_go@result %>% filter(p.adjust < 0.05)), "\n")
+```
+
+##### 3.2.1.2. Split Into Upregulated And Downregulated Pathways
+
+```{r}
+#| label: split_into_upregulated_and_downregulated_pathways_gsea_gobp
+
+
+# split DESeq2 GSEA results by NES sign
+gsea_deseq2_up_go   <- gsea_deseq2_go@result %>% filter(NES > 0)
+gsea_deseq2_down_go <- gsea_deseq2_go@result %>% filter(NES < 0)
+
+# split EdgeR GSEA results by NES sign
+gsea_edger_up_go   <- gsea_edger_go@result %>% filter(NES > 0)
+gsea_edger_down_go <- gsea_edger_go@result %>% filter(NES < 0)
+
+
+cat("DESeq2 GSEA GO:BP upregulated:  ", nrow(gsea_deseq2_up_go), "\n")
+cat("DESeq2 GSEA GO:BP downregulated:", nrow(gsea_deseq2_down_go), "\n\n")
+cat("EdgeR GSEA GO:BP upregulated:   ", nrow(gsea_edger_up_go), "\n")
+cat("EdgeR GSEA GO:BP downregulated: ", nrow(gsea_edger_down_go), "\n")
+```
+
+##### 3.2.1.3. Extract Consensus Results
+
+```{r}
+#| label: extract_consensus_results_gsea_gobp
+
+
+# intersect by pathway ID, retain DESeq2's full result rows as primary statistics
+gsea_consensus_up_go <- gsea_deseq2_up_go %>%
+  filter(p.adjust < 0.05) %>%
+  filter(ID %in% (gsea_edger_up_go %>% filter(p.adjust < 0.05) %>% pull(ID)))
+
+gsea_consensus_down_go <- gsea_deseq2_down_go %>%
+  filter(p.adjust < 0.05) %>%
+  filter(ID %in% (gsea_edger_down_go %>% filter(p.adjust < 0.05) %>% pull(ID)))
+
+cat("Consensus GSEA GO:BP terms before removing redundant ones:\n")
+cat("Upregulated:  ", nrow(gsea_consensus_up_go), "\n")
+cat("Downregulated:", nrow(gsea_consensus_down_go), "\n")
+
+
+
+# remove redundant GO terms using semantic similarity
+set.seed(42)
+gsea_consensus_up_go   <- simplify(
+  new("gseaResult", result = gsea_consensus_up_go, setType = "BP")
+)@result
+
+set.seed(42)
+gsea_consensus_down_go <- simplify(
+  new("gseaResult", result = gsea_consensus_down_go, setType = "BP")
+)@result
+
+cat("Consensus GSEA GO:BP terms after removing redundant ones:\n")
+cat("Upregulated:  ", nrow(gsea_consensus_up_go), "\n")
+cat("Downregulated:", nrow(gsea_consensus_down_go), "\n")
+
+
+
+cat("\nTop 10 consensus upregulated GO:BP terms:\n")
+gsea_consensus_up_go %>%
+  arrange(p.adjust) %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  mutate(
+    NES      = round(NES, 3),
+    p.adjust = formatC(p.adjust, format = "e", digits = 2)
+  ) %>%
+  head(10) %>%
+  knitr::kable()
+
+
+cat("\nTop 10 consensus downregulated GO:BP terms:\n")
+gsea_consensus_down_go %>%
+  arrange(p.adjust) %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  mutate(
+    NES      = round(NES, 3),
+    p.adjust = formatC(p.adjust, format = "e", digits = 2)
+  ) %>%
+  head(10) %>%
+  knitr::kable()
+```
+
+##### 3.2.1.4. Plot Consensus Results
+
+```{r}
+#| label: plot_consensus_results_gsea_gobp
+#| fig-width: 10
+#| fig-height: 5
+
+
+# convert into dotplot()-compatible objects
+gsea_consensus_up_go_enrich <- new("gseaResult", result = gsea_consensus_up_go)
+gsea_consensus_down_go_enrich <- new("gseaResult", result = gsea_consensus_down_go)
+
+
+
+# plot top 10 consensus upregulated GO:BP terms
+gsea_consensus_up_go_plot   <- dotplot(
+  gsea_consensus_up_go_enrich,
+  showCategory = 10,
+  title = "GSEA Consensus GO:BP Pathways: Upregulated in ME"
+) +
+theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+
+# plot top 10 consensus downregulated GO:BP terms
+gsea_consensus_down_go_plot   <- dotplot(
+  gsea_consensus_down_go_enrich,
+  showCategory = 10,
+  title = "GSEA Consensus GO:BP Pathways: Downregulated in ME"
+) +
+theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+
+
+gsea_consensus_up_go_plot
+gsea_consensus_down_go_plot
+```
+
+#### 3.2.2. Enrich Using KEGG Database
+
+##### 3.2.2.1. Enrich Full DE Results
+
+```{r}
+#| label: enrich_full_de_results_gsea_kegg
+
+
+# build Entrez ID ranked vectors for KEGG (enrichKEGG requires Entrez IDs)
+# DESeq2
+deseq2_rank_vector_entrez <- deseq2_results %>%           # DESeq2 full results
+  rownames_to_column(var = "ensembl_id") %>%              # convert rownames from results, i.e. Ensembl IDs, into values in a new column named "ensembl_id"
+  mutate(ensembl_id = gsub("\\..*", "", ensembl_id)) %>%  # strip version suffixes from Ensembl IDs
+  filter(!is.na(stat)) %>%                                # remove genes with NA Wald statistic (e.g. outliers flagged by DESeq2)
+  left_join(                                              # map Ensembl IDs to Entrez IDs (required by gseKEGG)
+    bitr(
+      gsub("\\..*", "", rownames(deseq2_results)),        # strip version suffixes before mapping
+      fromType = "ENSEMBL",
+      toType = "ENTREZID",
+      OrgDb = org.Hs.eg.db
+    ),
+    by = c("ensembl_id" = "ENSEMBL")                      # join on the stripped Ensembl ID column
+  ) %>%
+  filter(!is.na(ENTREZID)) %>%                            # remove genes that failed Ensembl -> Entrez mapping
+  distinct(ENTREZID, .keep_all = TRUE) %>%                # keep only first occurences of Entrez IDs
+  arrange(desc(stat)) %>%                                 # sort descending by Wald statistic for GSEA
+  dplyr::select(ENTREZID, stat) %>%                       # keep only gene ID and ranking statistic
+  deframe()                                               # convert to named numeric vector (Entrez ID = name, stat = value)
+
+
+# EdgeR
+edger_rank_vector_entrez <- edger_results %>%      # EdgeR full results
+  rownames_to_column(var = "ensembl_id") %>%       # convert rownames from results, i.e. Ensembl IDs, into values in a new column named "ensembl_id"
+  mutate(
+    ensembl_id = gsub("\\..*", "", ensembl_id),    # strip version suffixes from Ensembl IDs
+    signed_F   = F * sign(logFC)                   # assign logFC direction to F statistic
+  ) %>%
+  filter(!is.na(signed_F)) %>%                     # remove genes with NA signed-F statistic (e.g. outliers flagged by EdgeR)
+  left_join(                                       # map Ensembl IDs to Entrez IDs (required by gseKEGG)
+    bitr(
+      gsub("\\..*", "", rownames(edger_results)),  # strip version suffixes before mapping
+      fromType = "ENSEMBL",
+      toType = "ENTREZID",
+      OrgDb = org.Hs.eg.db
+    ),
+    by = c("ensembl_id" = "ENSEMBL")               # join on the stripped Ensembl ID column
+  ) %>%
+  filter(!is.na(ENTREZID)) %>%                     # remove genes that failed Ensembl -> Entrez mapping
+  distinct(ENTREZID, .keep_all = TRUE) %>%                # keep only first occurences of Entrez IDs
+  arrange(desc(signed_F)) %>%                      # sort descending by signed-F statistic for GSEA
+  dplyr::select(ENTREZID, signed_F) %>%            # keep only gene ID and ranking statistic
+  deframe()                                        # convert to named numeric vector (Entrez ID = name, stat = value)
+
+
+
+cat("DESeq2 Entrez rank vector length:", length(deseq2_rank_vector_entrez), "\n")
+cat("EdgeR Entrez rank vector length: ", length(edger_rank_vector_entrez), "\n")
+
+# GSEA on DESeq2 ranked list
+gsea_deseq2_kegg <- gseKEGG(
+  geneList      = deseq2_rank_vector_entrez,  # DESeq2 full results (Entrez IDs)
+  organism      = "hsa",                      # organism is human (hsa=Homo sapiens)
+  
+  pAdjustMethod = "BH",                       # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,                       # only consider p-values < 0.05 as significant
+  eps           = 0,                          # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  
+  verbose       = FALSE
+)
+
+# convert Entrez IDs to gene symbols in the output
+gsea_deseq2_kegg <- setReadable(gsea_deseq2_kegg, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+
+
+
+
+
+# GSEA on EdgeR ranked list
+gsea_edger_kegg <- gseKEGG(
+  geneList      = edger_rank_vector_entrez,  # EdgeR full results (Entrez IDs)
+  organism      = "hsa",                     # organism is human (hsa=Homo sapiens)
+  
+  pAdjustMethod = "BH",                      # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,                      # only consider p-values < 0.05 as significant
+  eps           = 0,                         # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  
+  verbose       = FALSE
+)
+
+# convert Entrez IDs to gene symbols in the output
+gsea_edger_kegg <- setReadable(gsea_edger_kegg, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+
+
+
+cat("\nGSEA KEGG results:\n")
+cat("DESeq2 significant pathways:", nrow(gsea_deseq2_kegg@result %>% filter(p.adjust < 0.05)), "\n")
+cat("EdgeR significant pathways: ", nrow(gsea_edger_kegg@result %>% filter(p.adjust < 0.05)), "\n")
+```
+
+##### 3.2.2.2. Split Into Upregulated And Downregulated Pathways
+
+```{r}
+#| label: split_into_upregulated_and_downregulated_pathways_gsea_kegg
+
+
+# split DESeq2 GSEA results by NES sign
+gsea_deseq2_up_kegg   <- gsea_deseq2_kegg@result %>% filter(NES > 0)
+gsea_deseq2_down_kegg <- gsea_deseq2_kegg@result %>% filter(NES < 0)
+
+# split EdgeR GSEA results by NES sign
+gsea_edger_up_kegg   <- gsea_edger_kegg@result %>% filter(NES > 0)
+gsea_edger_down_kegg <- gsea_edger_kegg@result %>% filter(NES < 0)
+
+
+cat("DESeq2 GSEA KEGG upregulated:  ", nrow(gsea_deseq2_up_kegg), "\n")
+cat("DESeq2 GSEA KEGG downregulated:", nrow(gsea_deseq2_down_kegg), "\n\n")
+cat("EdgeR GSEA KEGG upregulated:   ", nrow(gsea_edger_up_kegg), "\n")
+cat("EdgeR GSEA KEGG downregulated: ", nrow(gsea_edger_down_kegg), "\n")
+```
+
+##### 3.2.2.3. Extract Consensus Results
+
+```{r}
+#| label: extract_consensus_results_gsea_kegg
+
+
+# intersect by pathway ID, retain DESeq2's full result rows as primary statistics
+gsea_consensus_up_kegg <- gsea_deseq2_up_kegg %>%
+  filter(p.adjust < 0.05) %>%
+  filter(ID %in% (gsea_edger_up_kegg %>% filter(p.adjust < 0.05) %>% pull(ID)))
+
+gsea_consensus_down_kegg <- gsea_deseq2_down_kegg %>%
+  filter(p.adjust < 0.05) %>%
+  filter(ID %in% (gsea_edger_down_kegg %>% filter(p.adjust < 0.05) %>% pull(ID)))
+
+
+
+cat("Consensus GSEA KEGG terms:\n")
+cat("Upregulated:  ", nrow(gsea_consensus_up_kegg), "\n")
+cat("Downregulated:", nrow(gsea_consensus_down_kegg), "\n")
+
+cat("\nTop 10 consensus upregulated KEGG terms:\n")
+gsea_consensus_up_kegg %>%
+  arrange(p.adjust) %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  mutate(
+    NES      = round(NES, 3),
+    p.adjust = formatC(p.adjust, format = "e", digits = 2)
+  ) %>%
+  head(10) %>%
+  knitr::kable()
+
+
+cat("\nTop 10 consensus downregulated KEGG terms:\n")
+gsea_consensus_down_kegg %>%
+  arrange(p.adjust) %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  mutate(
+    NES      = round(NES, 3),
+    p.adjust = formatC(p.adjust, format = "e", digits = 2)
+  ) %>%
+  head(10) %>%
+  knitr::kable()
+```
+
+##### 3.2.2.4. Plot Consensus Results
+
+```{r}
+#| label: plot_consensus_results_gsea_kegg
+#| fig-width: 10
+#| fig-height: 5
+
+
+# convert into dotplot()-compatible objects
+gsea_consensus_up_kegg_gsea_result <- new("gseaResult", result = gsea_consensus_up_kegg)
+gsea_consensus_down_kegg_gsea_result <- new("gseaResult", result = gsea_consensus_down_kegg)
+
+
+
+# plot top 10 consensus upregulated KEGG terms
+gsea_consensus_up_kegg_plot   <- dotplot(
+  gsea_consensus_up_kegg_gsea_result,
+  showCategory = 10,
+  title = "GSEA Consensus KEGG Pathways: Upregulated in ME"
+) +
+theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+
+# plot top 10 consensus downregulated KEGG terms
+gsea_consensus_down_kegg_plot   <- dotplot(
+  gsea_consensus_down_kegg_gsea_result,
+  showCategory = 10,
+  title = "GSEA Consensus KEGG Pathways: Downregulated in ME"
+) +
+theme(plot.title = element_text(hjust = 0.5, size = 14))
+
+
+
+gsea_consensus_up_kegg_plot
+gsea_consensus_down_kegg_plot
+```
+
+#### 3.2.3. Combine GSEA Consensus Results Plots
+
+```{r}
+#| label: combine_gsea_consensus_results_plots
+#| fig-width: 20
+#| fig-height: 10
+
+
+gsea_consensus_plots <- (gsea_consensus_up_go_plot | gsea_consensus_up_kegg_plot) /
+                     (gsea_consensus_down_go_plot | gsea_consensus_down_kegg_plot) +
+  plot_annotation(
+    title    = "GSEA Consensus Pathways: GO:BP And KEGG",
+    subtitle = "Upregulated (top) and Downregulated (bottom) in Mesenchymal vs Proneural GBM",
+    theme    = theme(
+      plot.title    = element_text(hjust = 0.5, face = "bold", size = 18),
+      plot.subtitle = element_text(hjust = 0.5, size = 14)
+    )
+  )
+
+gsea_consensus_plots
+```
+
+The GSEA results, split by enrichment direction, **largely** **reinforce the ORA findings** while **revealing the proliferation and DNA damage response signals first identified in EDA's PC1**.
+
+-   **Upregulated in Mesenchymal** **confirms** the **same** **mesenchymal/wound-healing signature** as **ORA**:
+
+    -   **Cytokine signaling**
+
+    -   **Leukocyte migration and cell adhesion** (cell adhesion: process by which cells interact and attach to neighboring cells/ECM)
+
+    -   **Adaptive immunity**
+
+    -   **Regulation of inflammatory response and immune effector processes**
+
+    -   **NF-κB and NOD-like receptor signaling**
+
+        -   **NF-κB signaling pathway**: NF-κB is a transcription factor that, once activated by cytokines or immune signals, enters the nucleus and activates genes for cytokine production, immune cell recruitment, and anti-apoptotic survival pathways — consistent with the constitutively active inflammatory state of ME tumors.
+
+        -   **NOD-like receptor signaling:**
+
+            -   **NOD** stands for **Nucleotide-binding Oligomerization Domain** (**domains** are **functional, independent subunits** of a **larger protein** molecule).
+
+            -   **NOD-like receptors (NLRs)** are a **specialized family of intracellular proteins** that act as **immune sensors** within the cell's **cytoplasm**. More accurately, NLR proteins have **both a receptor end and a signaling end**, i.e. they act like a **molecular switchboard** of immune signaling.
+
+            -   They get their name because they bind **nucleotides** (like ATP) to snap **multiple receptor proteins** together **(i.e. oligomerization)**, which **forces their signaling ends into close contact**, physically **activating and attracting immune enzymes** which then **activate the genes required to cause inflammation**.
+
+    The **viral infection and tuberculosis KEGG terms** (Herpes, Staph aureus, tuberculosis) are further **artifacts of shared cytokine/complement genes** rather than evidence of actual infection, **consistent with the lupus/alcoholism artifacts** seen in **ORA**.
+
+-   **Downregulated in Mesenchymal (i.e. upregulated in Proneural)** reveals **signals not captured by ORA**: **active cell division**, **DNA damage response**, and **RNA/chromatin processing**.
+
+    -   **GO:BP**
+
+        -   **Chromosome segregation**
+
+        -   **Sister chromatid segregation**
+
+        -   **Nuclear division**
+
+        -   **Double strand break repair:** Since its a tumor tissue, **cells divide rapidly** and as a result **accumulate more replication errors**, consequently showing **stronger DNA repair activity**. This is **consistent with the proliferative identity of Proneural tumors**, rather than indicating genomic instability.
+
+        -   **Protein-DNA complex organization and assembly**
+
+        -   **mRNA processing**
+
+    -   **KEGG**
+
+        -   **Cell cycle**
+
+        -   **ATP-dependent chromatin remodeling**
+
+        -   **Spliceosome**
+
+            -   Spliceosomes are **complex structures** made of **proteins and snRNAs (small nuclear RNAs),** responsible for carrying out **splicing of pre-mRNA molecules**.
+
+            -   This pathway being active in proneural tumors indicates that s**plicing is highly active in the transcription of the genes upregulated in proneural tumors**, meaning that there is **even more variety due to protein isoforms**, making them **more robust in carrying out their functions** and **upholding the proneural transcriptome**.
+
+        -   **Fanconi anemia (FA)**:
+
+            -   Fanconi anemia is a **genetic disorder** where the **body's ability to repair DNA is damaged**, so the **hematopoietic cells (HSCs) in bone marrow** divide into **blood cells** that **accumulate damages to DNA**. These cells consequently **undergo apoptosis to prevent further damage**.
+
+            -   **FA genes** are genes that are **responsible for DNA repair**. It is **contradictory naming**; they were named FA genes **because scientists observed that the** **disease of FA occurs when these genes malfunction.**
+
+            -   **FA pathway upregulation in PN indicates** that rapidly dividing **Proneural tumor cells maintain active DNA repair machinery**, consistent with sustaining **high rates of cell division without catastrophic genomic instability**.
+
+            -   This is **consistent with the double strand break repair pathway above**.
+
+        -   **Nucleocytoplasmic transport**
+
+    -   This directly **recapitulates the PC1 proliferation axis identified in EDA**, indicating **Proneural** tumors carry a **relatively stronger proliferative signature** than Mesenchymal in this comparison. The **glutamatergic synapse term reappears here** too, **reaffirming the neural identity** already established by **ORA's downregulated results**. **Alcoholism, nicotine addiction, and polycomb repressive complex** are additional **histone-gene KEGG artifacts.**
+
+## 4. Save Outputs
+
+### 4.1. Save Pathway Enrichment Results
+
+#### 4.1.1. Save ORA Results
+
+```{r}
+#| label: save_ora_results
+
+
+write_csv(as.data.frame(ora_consensus_up_go),     "../04_results/06_pathway_enrichment/01_ora/01_ora_consensus_upregulated_gobp.csv")
+write_csv(as.data.frame(ora_consensus_up_kegg),   "../04_results/06_pathway_enrichment/01_ora/02_ora_consensus_upregulated_kegg.csv")
+write_csv(as.data.frame(ora_consensus_down_go),   "../04_results/06_pathway_enrichment/01_ora/03_ora_consensus_downregulated_gobp.csv")
+write_csv(as.data.frame(ora_consensus_down_kegg), "../04_results/06_pathway_enrichment/01_ora/04_ora_consensus_downregulated_kegg.csv")
+
+
+cat("ORA results saved\n")
+```
+
+#### 4.1.2. Save GSEA Results
+
+```{r}
+#| label: save_gsea_results
+
+
+write_csv(gsea_consensus_up_go,   "../04_results/06_pathway_enrichment/02_gsea/01_gsea_consensus_upregulated_gobp.csv")
+write_csv(gsea_consensus_up_kegg,   "../04_results/06_pathway_enrichment/02_gsea/02_gsea_consensus_upregulated_kegg.csv")
+write_csv(gsea_consensus_down_go, "../04_results/06_pathway_enrichment/02_gsea/03_gsea_consensus_downregulated_gobp.csv")
+write_csv(gsea_consensus_down_kegg, "../04_results/06_pathway_enrichment/02_gsea/04_gsea_consensus_downregulated_kegg.csv")
+
+cat("GSEA results saved\n")
+```
+
+### 4.2. Save Pathway Enrichment Plots
+
+```{r}
+#| label: save_pathway_enrichment_plots
+
+
+ggsave("../03_figures/06_pathway_enrichment/01_ora_consensus_plots.png",  plot = ora_consensus_plots,  width = 20, height = 10, dpi = 300)
+ggsave("../03_figures/06_pathway_enrichment/02_gsea_consensus_plots.png", plot = gsea_consensus_plots, width = 20, height = 10, dpi = 300)
+
+cat("Pathway enrichment plots saved\n")
+```
+
+## 5. Perform Sanity Checks
+
+```{r}
+#| label: perform_sanity_checks
+
+
+ora_consensus_up_go_exists     <- file.exists("../04_results/06_pathway_enrichment/01_ora/01_ora_consensus_upregulated_gobp.csv")
+ora_consensus_up_kegg_exists     <- file.exists("../04_results/06_pathway_enrichment/01_ora/02_ora_consensus_upregulated_kegg.csv")
+ora_consensus_down_go_exists     <- file.exists("../04_results/06_pathway_enrichment/01_ora/03_ora_consensus_downregulated_gobp.csv")
+ora_consensus_down_kegg_exists     <- file.exists("../04_results/06_pathway_enrichment/01_ora/04_ora_consensus_downregulated_kegg.csv")
+
+gsea_consensus_up_go_exists     <- file.exists("../04_results/06_pathway_enrichment/02_gsea/01_gsea_consensus_upregulated_gobp.csv")
+gsea_consensus_up_kegg_exists     <- file.exists("../04_results/06_pathway_enrichment/02_gsea/02_gsea_consensus_upregulated_kegg.csv")
+gsea_consensus_down_go_exists     <- file.exists("../04_results/06_pathway_enrichment/02_gsea/03_gsea_consensus_downregulated_gobp.csv")
+gsea_consensus_down_kegg_exists     <- file.exists("../04_results/06_pathway_enrichment/02_gsea/04_gsea_consensus_downregulated_kegg.csv")
+
+
+ora_consensus_plots_exists  <- file.exists("../03_figures/06_pathway_enrichment/01_ora_consensus_plots.png")
+gsea_consensus_plots_exists <- file.exists("../03_figures/06_pathway_enrichment/02_gsea_consensus_plots.png")
+
+
+
+
+
+cat("ORA upregulated GO:BP saved:     ", ifelse(ora_consensus_up_go_exists,     "✓", "✗"), "\n")
+cat("ORA upregulated KEGG saved:      ", ifelse(ora_consensus_up_kegg_exists,   "✓", "✗"), "\n")
+cat("ORA downregulated GO:BP saved:   ", ifelse(ora_consensus_down_go_exists,   "✓", "✗"), "\n")
+cat("ORA downregulated KEGG saved:    ", ifelse(ora_consensus_down_kegg_exists, "✓", "✗"), "\n")
+
+cat("GSEA upregulated GO:BP saved:    ", ifelse(gsea_consensus_up_go_exists,     "✓", "✗"), "\n")
+cat("GSEA upregulated KEGG saved:     ", ifelse(gsea_consensus_up_kegg_exists,   "✓", "✗"), "\n")
+cat("GSEA downregulated GO:BP saved:  ", ifelse(gsea_consensus_down_go_exists,   "✓", "✗"), "\n")
+cat("GSEA downregulated KEGG saved:   ", ifelse(gsea_consensus_down_kegg_exists, "✓", "✗"), "\n")
+
+
+cat("ORA combined plot saved:         ", ifelse(ora_consensus_plots_exists,  "✓", "✗"), "\n")
+cat("GSEA consensus plot saved:       ", ifelse(gsea_consensus_plots_exists, "✓", "✗"), "\n")
+
+
+if (all(ora_consensus_up_go_exists, ora_consensus_up_kegg_exists,
+        ora_consensus_down_go_exists, ora_consensus_down_kegg_exists,
+        gsea_consensus_up_go_exists, gsea_consensus_up_kegg_exists,
+        gsea_consensus_down_go_exists, gsea_consensus_down_kegg_exists,
+        ora_consensus_plots_exists, gsea_consensus_plots_exists)
+    )
+{
+  cat("\nNotebook 06 complete — all outputs verified\n")
+} else {
+  cat("\nWARNING: One or more outputs missing\n")
+}
+```
