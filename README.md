@@ -137,8 +137,10 @@ Execute notebooks sequentially (00 → 09). Each notebook saves intermediate out
 ### Project Pipeline Architecture
 
 <p align="center">
-  <img src="gbm_project_pipeline_flowchart.png" alt="Project Pipeline Flowchart" width="50%" #gh-light-mode-only />
-  <img src="gbm_project_pipeline_flowchart.png" alt="Project Pipeline Flowchart" width="50%" style="filter: invert(1) hue-rotate(180deg);" #gh-dark-mode-only />
+    <picture>
+        <source media="(prefers-color-scheme: dark)" srcset="gbm_project_pipeline_flowchart_dark.png">
+        <img src="gbm_project_pipeline_flowchart.png" alt="GBM Project Pipeline Flowchart" width=60%>
+    </picture>
 </p>
 
 ### Analytical Decisions
