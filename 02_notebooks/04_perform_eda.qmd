@@ -1,0 +1,651 @@
+---
+title: "Notebook 04: Perform EDA"
+author: "Shirshak Aryal"
+date: today
+format:
+  html:
+    code-overflow: scroll
+    embed-resources: true
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+Perform **Exploratory Data Analysis (EDA) measures** on the **filtered** **`unstranded` raw counts matrix**. The primary purpose of EDA in this project is to **explore the primary basis of variance between the samples**.
+
+The EDA steps will be performed with the **top 500 Highly Variable Genes (HVGs) only,** since these are the only genes that likely have **highly fluctuating expression levels among samples**. The **rest of the genes** are composed of housekeeping genes, ribosomal genes, etc., that have a relatively **consistent expression** throughout all samples, regardless of subtype.
+
+The EDA steps are hence as follows:
+
+-   **Setup**: Identify and select the **top 500 HVGs**.
+
+-   **PC variance decomposition**:
+
+    -   **HVG PCA plot**: Perform PCA on the HVGs to explore the **top basis of variance** among samples.
+
+    -   **Scree plot**: Plot **variance explained per PC** and identify the **elbow**, i.e. the point where the curve transitions from steep decline to flat plateau, indicating **diminishing returns per additional PC.**
+
+    -   **Pathway identification**: For **each PC up to the elbow**, identify the **top contributing genes** and perform quick GO enrichment to identify the **main biological processes** driving variance among samples.
+
+-   **Sample correlation heatmap**: Heatmap based on gene expression correlation between all samples, **annotated by subtype** to assess if samples **cluster by subtype**.
+
+## 1. Import Libraries
+
+```{r}
+#| label: import_libraries
+
+
+library(tidyverse)        # data manipulation and visualisation
+library(matrixStats)      # row and column-wise statistical operations on matrices
+library(patchwork)        # combine multiple ggplot2 plots into one canvas
+library(pheatmap)         # colorful heatmaps
+library(enrichplot)       # visualisation of enrichment results
+library(clusterProfiler)  # gene set enrichment and pathway analysis
+library(org.Hs.eg.db)     # human gene annotation database
+
+cat("\nLibraries loaded successfully\n")
+cat("tidyverse version:       ", as.character(packageVersion("tidyverse")), "\n")
+cat("matrixStats version:     ", as.character(packageVersion("matrixStats")), "\n")
+cat("patchwork version:       ", as.character(packageVersion("patchwork")), "\n")
+cat("pheatmap version:        ", as.character(packageVersion("pheatmap")), "\n")
+cat("enrichplot version:      ", as.character(packageVersion("enrichplot")), "\n")
+cat("clusterProfiler version: ", as.character(packageVersion("clusterProfiler")), "\n")
+cat("org.Hs.eg.db version:    ", as.character(packageVersion("org.Hs.eg.db")), "\n")
+```
+
+## 2. Load Data
+
+### 2.1. Load Filtered Counts Matrix
+
+```{r}
+#| label: load_filtered_counts_matrix
+
+
+filtered_counts_matrix <- readRDS("../01_data/02_processed/04_filtered_counts_matrix.rds")
+
+cat("Filtered counts matrix loaded:", nrow(filtered_counts_matrix), "genes x", ncol(filtered_counts_matrix), "samples\n\n")
+
+filtered_counts_matrix[1:3, 1:3]
+```
+
+### 2.2. Load Filtered Tumor Subtype Information
+
+```{r}
+#| label: load_filtered_tumor_subtype_info
+
+
+tumor_subtype_info <- readRDS("../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
+
+cat("Filtered tumor subtype info loaded:", nrow(tumor_subtype_info), "samples\n")
+tumor_subtype_info %>%
+  as.data.frame() %>%
+  dplyr::select(paper_Transcriptome.Subtype) %>%
+  head(5) %>%
+  knitr::kable()
+```
+
+### 2.3. Load Filtered Gene Metadata
+
+```{r}
+#| label: load_filtered_gene_metadata
+
+
+gene_metadata <- readRDS("../01_data/02_processed/06_filtered_gene_metadata.rds")
+cat("Filtered gene metadata loaded:", nrow(gene_metadata), "genes\n")
+gene_metadata[1:5, 1:8] %>% as.data.frame() %>% knitr::kable()
+```
+
+## 3. Perform EDA
+
+### 3.1. Calculate HVGs
+
+```{r}
+#| label: calculate_hvgs
+
+
+# calculate per-gene variance across all samples (log1p transformed)
+gene_vars    <- rowVars(log1p(filtered_counts_matrix))
+names(gene_vars) <- rownames(filtered_counts_matrix)
+
+# select top 500 genes by variance
+top_hvg_ids  <- order(gene_vars, decreasing = TRUE)[1:500]
+hvg_matrix   <- log1p(filtered_counts_matrix[top_hvg_ids, ])
+
+cat("Total genes before HVG selection:", nrow(filtered_counts_matrix), "\n")
+cat("HVGs selected:", nrow(hvg_matrix), "\n")
+cat("Top 5 HVG Ensembl IDs:\n")
+print(rownames(hvg_matrix)[1:5])
+```
+
+### 3.2. Decompose Principal Component Variances
+
+#### 3.2.1. Create HVG PCA Plot
+
+##### 3.2.1.1. Perform PCA On HVGs
+
+```{r}
+#| label: perform_pca_on_hvgs
+
+
+pca_result <- prcomp(t(hvg_matrix), scale. = TRUE)
+
+cat("PCA completed\n")
+cat("Samples (rows):", nrow(pca_result$x), "\n")
+cat("PCs computed:  ", ncol(pca_result$x), "\n")
+```
+
+##### 3.2.1.2. Plot PCA On HVGs
+
+```{r}
+#| label: plot_pca_on_hvgs
+
+
+pca_data    <- data.frame(
+                 PC1     = pca_result$x[, 1],
+                 PC2     = pca_result$x[, 2],
+                 subtype = tumor_subtype_info$paper_Transcriptome.Subtype
+               )
+pca_mapping <- aes(x = PC1, y = PC2, colour = subtype)
+pca_labels  <- labs(
+                 title   = "HVG PCA",
+                 x       = "PC1",
+                 y       = "PC2",
+                 colour  = "Subtype"
+               )
+
+pca_plot <- ggplot(pca_data, pca_mapping) +
+  
+            geom_point(alpha = 0.7, size = 2) +
+  
+            pca_labels +
+  
+            theme_minimal() +
+            theme(
+              plot.title = element_text(hjust = 0.5),                # center the title
+              axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
+              axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+            )
+
+pca_plot
+```
+
+#### 3.2.2. Create Scree Plot
+
+```{r}
+#| label: create_scree_plot
+
+
+# calculate variance explained per PC
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2) * 100
+
+# plot top 20 PCs only
+scree_data    <- data.frame(
+                   PC            = 1:20,
+                   var_explained = var_explained[1:20]
+                 )
+scree_mapping <- aes(x = PC, y = var_explained)
+scree_labels  <- labs(
+                   title = "Scree Plot",
+                   x     = "Principal Component",
+                   y     = "Variance Explained (%)"
+                 )
+
+scree_plot <- ggplot(scree_data, scree_mapping) +
+  
+              geom_line(colour = "steelblue") +
+              geom_point(colour = "steelblue", size = 2) +
+  
+              scree_labels +
+  
+              theme_minimal() +
+              theme(
+              plot.title = element_text(hjust = 0.5),                # center the title
+              axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
+              axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+            )
+
+scree_plot
+```
+
+#### 3.2.3. Extract PC Loadings
+
+PC loadings here refer to the **top `n` genes that drive each principal component**. In this case, the **top 100 genes per PC** are selected, i.e. **20% of the total 500 HVGs.**
+
+```{r}
+#| label: extract_pc_loadings
+
+# extract top 100 genes contributing to PC1, PC2, PC3
+pc1_loadings <- sort(abs(pca_result$rotation[, 1]), decreasing = TRUE)[1:100]
+pc2_loadings <- sort(abs(pca_result$rotation[, 2]), decreasing = TRUE)[1:100]
+pc3_loadings <- sort(abs(pca_result$rotation[, 3]), decreasing = TRUE)[1:100]
+
+cat("Top 10 genes driving PC1:\n")
+print(names(pc1_loadings)[1:10])
+cat("\nTop 10 genes driving PC2:\n")
+print(names(pc2_loadings)[1:10])
+cat("\nTop 10 genes driving PC3:\n")
+print(names(pc3_loadings)[1:10])
+
+# strip version numbers from Ensembl IDs
+cat("\nStripping version numbers from Ensembl IDs...\n\n")
+pc1_ids <- gsub("\\..*", "", names(pc1_loadings))
+pc2_ids <- gsub("\\..*", "", names(pc2_loadings))
+pc3_ids <- gsub("\\..*", "", names(pc3_loadings))
+
+cat("Converting Ensembl IDs to gene symbols...\n\n")
+# convert Ensembl IDs to gene symbols
+pc1_symbols <- bitr(pc1_ids, fromType = "ENSEMBL", toType = "SYMBOL", OrgDb = org.Hs.eg.db)
+pc2_symbols <- bitr(pc2_ids, fromType = "ENSEMBL", toType = "SYMBOL", OrgDb = org.Hs.eg.db)
+pc3_symbols <- bitr(pc3_ids, fromType = "ENSEMBL", toType = "SYMBOL", OrgDb = org.Hs.eg.db)
+```
+
+#### 3.2.4. Perform GO Enrichment On PC Loadings
+
+##### 3.2.4.1. Perform GO:BP Enrichment
+
+**Gene Ontology: Biological Process (GO:BP)** is a **pathway database maintained by the GO Consortium** that specifies pathways involved in specific **biological activities** such as glial cell differentiation, neural stem cell proliferation, apoptotic process, DNA repair, etc.
+
+```{r}
+#| label: perform_gobp_enrichment_on_pc_loadings
+
+
+# PC1 GO:BP enrichment
+pc1_go <- enrichGO(
+  gene          = pc1_ids,       # PC1 gene identifiers
+  OrgDb         = org.Hs.eg.db,  # human gene annotation database
+  keyType       = "ENSEMBL",     # gene identifiers are in Ensembl ID format
+  ont           = "BP",          # test against the GO Biological Process (BP) database
+  
+  pAdjustMethod = "BH",          # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,          # only consider p-values < 0.05 as significant
+  
+  readable      = TRUE           # convert Ensembl IDs to gene symbols in the output
+)
+
+
+
+# PC2 GO:BP enrichment
+pc2_go <- enrichGO(
+  gene          = pc2_ids,       # PC2 gene identifiers
+  OrgDb         = org.Hs.eg.db,  # human gene annotation database
+  keyType       = "ENSEMBL",     # gene identifiers are in Ensembl ID format
+  ont           = "BP",          # test against the GO Biological Process (BP) database
+  
+  pAdjustMethod = "BH",          # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,          # only consider p-values < 0.05 as significant
+  
+  readable      = TRUE           # convert Ensembl IDs to gene symbols in the output
+)
+
+
+
+# PC3 GO:BP enrichment
+pc3_go <- enrichGO(
+  gene          = pc3_ids,       # PC3 gene identifiers
+  OrgDb         = org.Hs.eg.db,  # human gene annotation database
+  keyType       = "ENSEMBL",     # gene identifiers are in Ensembl ID format
+  ont           = "BP",          # test against the GO Biological Process (BP) database
+  
+  pAdjustMethod = "BH",          # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,          # only consider p-values < 0.05 as significant
+  
+  readable      = TRUE           # convert Ensembl IDs to gene symbols in the output
+)
+
+
+
+cat("PC1 significant GO:BP terms:", nrow(pc1_go@result[pc1_go@result$p.adjust < 0.05,]), "\n")
+cat("PC2 significant GO:BP terms:", nrow(pc2_go@result[pc2_go@result$p.adjust < 0.05,]), "\n")
+cat("PC3 significant GO:BP terms:", nrow(pc3_go@result[pc3_go@result$p.adjust < 0.05,]), "\n")
+```
+
+##### 3.2.4.2. Perform KEGG Enrichment
+
+**Kyoto Encyclopedia of Genes and Genomes (KEGG)** is a **pathway database maintained by Kyoto University in Japan** that maps collections of genes to **known metabolic and signaling pathways** such as glioma development signaling, tumor suppressor signaling, etc.
+
+```{r}
+#| label: perform_kegg_enrichment_on_pc_loadings
+
+
+# convert Ensembl IDs to Entrez IDs for KEGG
+pc1_entrez <- bitr(pc1_ids, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+pc2_entrez <- bitr(pc2_ids, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+pc3_entrez <- bitr(pc3_ids, fromType = "ENSEMBL", toType = "ENTREZID", OrgDb = org.Hs.eg.db)$ENTREZID
+
+cat("PC1 Entrez IDs mapped:", length(pc1_entrez), "\n")
+cat("PC2 Entrez IDs mapped:", length(pc2_entrez), "\n")
+cat("PC3 Entrez IDs mapped:", length(pc3_entrez), "\n")
+
+
+
+# PC1 KEGG enrichment
+pc1_kegg <- enrichKEGG(
+  gene          = pc1_entrez,    # PC! Entrez IDs
+  organism      = "hsa",         # organism is human (hsa=Homo sapiens)
+  
+  pAdjustMethod = "BH",          # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05           # only consider p-values < 0.05 as significant
+)
+
+# convert Entrez IDs to gene symbols in the output
+pc1_kegg <- setReadable(pc1_kegg, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+
+
+
+
+
+# PC2 KEGG enrichment
+pc2_kegg <- enrichKEGG(
+  gene          = pc2_entrez,    # PC2 Entrez IDs
+  organism      = "hsa",         # organism is human (hsa = Homo sapiens)
+  
+  pAdjustMethod = "BH",          # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05           # only consider p-values < 0.05 as significant
+)
+
+# convert Entrez IDs to gene symbols in the output
+pc2_kegg <- setReadable(pc2_kegg, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+
+
+
+
+
+# PC3 KEGG enrichment
+pc3_kegg <- enrichKEGG(
+  gene          = pc3_entrez,    # PC3 Entrez IDs
+  organism      = "hsa",         # organism is human (hsa=Homo sapiens)
+  
+  pAdjustMethod = "BH",          # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05           # only consider p-values < 0.05 as significant
+)
+
+# convert Entrez IDs to gene symbols in the output
+pc3_kegg <- setReadable(pc3_kegg, OrgDb = org.Hs.eg.db, keyType = "ENTREZID")
+
+
+
+
+
+cat("PC1 significant KEGG terms:", nrow(pc1_kegg@result[pc1_kegg@result$p.adjust < 0.05,]), "\n")
+cat("PC2 significant KEGG terms:", nrow(pc2_kegg@result[pc2_kegg@result$p.adjust < 0.05,]), "\n")
+cat("PC3 significant KEGG terms:", nrow(pc3_kegg@result[pc3_kegg@result$p.adjust < 0.05,]), "\n")
+```
+
+##### 3.2.4.3. Assess Enriched Pathways
+
+```{r}
+#| label: assess_enriched_pathways
+
+
+# PC1 pathways
+cat("\nTop 5 GO:BP terms for PC1:\n")        # GO:BP
+print(head(pc1_go@result$Description, 5))
+
+cat("\nTop 5 KEGG terms for PC1:\n")         # KEGG
+print(head(pc1_kegg@result$Description, 5))
+
+
+# PC2 pathways
+cat("\n\n\nTop 5 GO:BP terms for PC2:\n")    # GO:BP
+print(head(pc2_go@result$Description, 5))
+
+cat("\nTop 5 KEGG terms for PC2:\n")         # KEGG
+print(head(pc2_kegg@result$Description, 5))
+
+
+# PC3 pathways
+cat("\n\n\nTop 5 GO:BP terms for PC3:\n")    # GO:BP
+print(head(pc3_go@result$Description, 5))
+
+cat("\nTop 5 KEGG terms for PC3:\n")         # KEGG
+print(head(pc3_kegg@result$Description, 5))
+```
+
+#### 3.2.5. Plot Enrichments
+
+##### 3.2.5.1. Plot PC1 Enrichments
+
+```{r}
+#| label: plot_pc1_enrichments
+#| fig-width: 15
+#| fig-height: 5
+
+
+# GO:BP dotplot
+pc1_gobp_plot <- dotplot(pc1_go, showCategory = 10, title = "PC1 GO:BP") +
+                 theme(plot.title = element_text(hjust = 0.5))
+
+# KEGG dotplot
+pc1_kegg_plot <- dotplot(pc1_kegg, showCategory = 10, title = "PC1 KEGG") +
+                 theme(plot.title = element_text(hjust = 0.5))
+
+# combine
+pc1_gobp_kegg_plot <- (pc1_gobp_plot | pc1_kegg_plot) + 
+  plot_annotation(
+    title = "PC1 Pathway Enrichment",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
+  )
+
+pc1_gobp_kegg_plot
+```
+
+##### 3.2.5.2. Plot PC2 Enrichments
+
+```{r}
+#| label: plot_pc2_enrichments
+#| fig-width: 15
+#| fig-height: 5
+
+
+# GO:BP dotplot
+pc2_gobp_plot <- dotplot(pc2_go, showCategory = 10, title = "PC2 GO:BP") +
+                 theme(plot.title = element_text(hjust = 0.5))
+
+# KEGG dotplot
+pc2_kegg_plot <- dotplot(pc2_kegg, showCategory = 10, title = "PC2 KEGG") +
+                 theme(plot.title = element_text(hjust = 0.5))
+
+# combine
+pc2_gobp_kegg_plot <- (pc2_gobp_plot | pc2_kegg_plot) + 
+  plot_annotation(
+    title = "PC2 Pathway Enrichment",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
+  )
+
+pc2_gobp_kegg_plot
+```
+
+##### 3.2.5.3. Plot PC3 Enrichments
+
+```{r}
+#| label: plot_pc3_enrichments
+#| fig-width: 15
+#| fig-height: 5
+
+
+# GO:BP dotplot
+pc3_gobp_plot <- dotplot(pc3_go, showCategory = 10, title = "PC3 GO:BP") +
+                 theme(plot.title = element_text(hjust = 0.5))
+
+# KEGG dotplot
+pc3_kegg_plot <- dotplot(pc3_kegg, showCategory = 10, title = "PC3 KEGG") +
+                 theme(plot.title = element_text(hjust = 0.5))
+
+# combine
+pc3_gobp_kegg_plot <- (pc3_gobp_plot | pc3_kegg_plot) + 
+  plot_annotation(
+    title = "PC3 Pathway Enrichment",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
+  )
+
+pc3_gobp_kegg_plot
+```
+
+##### 3.2.5.4. Combine Enrichment Plots
+
+```{r}
+#| label: combine_enrichment_plots
+#| fig-width: 15
+#| fig-height: 15
+
+pc_gobp_kegg_plot <- (pc1_gobp_kegg_plot) /
+                     (pc2_gobp_kegg_plot) /
+                     (pc3_gobp_kegg_plot) +
+  
+                     plot_annotation(
+                       title = "PC Pathway Enrichment",
+                       theme = theme(
+                         plot.title = element_text(
+                                        hjust = 0.5,
+                                        size = 16,
+                                        face = "bold"
+                                      )
+                         )
+                     )
+
+pc_gobp_kegg_plot
+```
+
+These plots show **dots based on confidence** backed by the **p-value significance** as well as the **proportion of the top 100 genes** loading on **each PC** that hit each pathway. The larger and redder the dot, the more reliable the enrichment signal. The most prominent dots are sufficient to deduce what each PC represents.
+
+-   **PC1**
+
+    The most significant dots hit the following pathways:
+
+    -   **Nucleosome assembly/organisation**: **Nucleosomes** are the basic units of chromatin packaging, i.e. **DNA wrapped around histone proteins**. **High nucleosome assembly** activity indicates **active chromatin reorganization**, which occurs primarily during **cell division** when the entire genome must be duplicated and repackaged.
+
+    -   **Protein-DNA complex/organisation**: This is essentially **identical to nucleosome assembly/organization**. Both describe the physical packaging of DNA around histone proteins into chromatin.
+
+    -   **Systemic lupus erythematosus/alcoholism**: These are **not real biological signals** but KEGG artifacts. **Histone genes are annotated to these pathways** in KEGG's database because **both conditions involve chromatin dysregulation** (i.e. disruption of the mechanisms that package DNA and control gene expression), but the connection to GBM biology is not meaningful.
+
+    -   **Neutrophil extracellular trap formation**: Neutrophils expel their **DNA and chromatin** outward to trap pathogens. Since chromatin is composed of DNA wrapped around **histone** proteins, this pathway being hit is a **consequence of histone gene presence in the loading list**, not a reflection of neutrophil biology in these tumors.
+
+    Since **nucleosome assembly/organisation** and **histone protein presence** are both indicative of **active cell division**, PC1 is representative of [**tumor proliferation rate**]{.underline}. Importantly, **proliferation varies independently of subtype**: both PN and ME tumors contain high and low proliferating samples, which is why the two PCA clouds **each contain mixed subtypes** rather than separating cleanly by subtype label.
+
+-   **PC2**
+
+    The most significant dots hit the following pathways:
+
+    -   **CNS neuron differentiation**: This is indicative of the **neural stem cell transcriptomic signature** characteristic of **Proneural** GBM, i.e. tumor cells that have partially recapitulated (i.e. re-expressed) a neural differentiation program.
+
+    -   **Neuroactive ligand signaling**: **Ligands** are any molecules or ions that **bind to and trigger specific cell receptors**. **Proneural tumor** cells express **neuronal receptors** and respond to **neuroactive ligands** as part of their neural-like transcriptomic identity, consistent with the Proneural subtype's recapitulation of neural stem cell biology.
+
+    PC2 therefore captures [**neural identity**]{.underline}, i.e. the **Proneural transcriptomic signature**. This explains why PC2 **partially separates the two subtypes** in the PCA plot.
+
+-   **PC3**
+
+    PC3 represents the **mature functional end of the neural program captured by PC2**, specifically **postsynaptic membrane regulation** and **inhibitory neuron biology**, suggesting it distinguishes more neurally mature tumors within the Proneural group.
+
+### 3.3. Plot Sample HVG Correlation Heatmap
+
+```{r}
+#| label: plot_sample_hvg_correlation_heatmap
+#| fig-width: 10
+#| fig-height: 8.5
+
+
+# calculate sample correlation matrix using HVG expression
+cor_matrix <- cor(hvg_matrix)
+
+# annotation dataframe for subtype coloring
+annot_df <- data.frame(
+               Subtype   = tumor_subtype_info$paper_Transcriptome.Subtype,
+               row.names = colnames(hvg_matrix)
+             )
+
+# plot heatmap
+corr_plot <- pheatmap(
+  cor_matrix,
+  annotation_col       = annot_df,
+  show_rownames        = FALSE,
+  show_colnames        = FALSE,
+  annotation_names_col = FALSE,
+  main                 = "Sample HVG Expression Correlation",
+  silent               = TRUE
+)$gtable
+
+wrap_elements(corr_plot)
+```
+
+The correlation heatmap **confirms the PCA findings**:
+
+-   **Two major clusters** of **transcriptomically similar** samples are visible **(red diagonal blocks)**, **separated** by a region of **low correlation (blue off-diagonal).** This is consistent with **PC1** capturing **tumor proliferation rate**.
+
+-   The **subtype annotation bar** [imperfectly]{.underline} maps onto these clusters, consistent with **PC2 capturing subtype identity/differences**.
+
+## 4. Save EDA Plots
+
+```{r}
+#| label: save_eda_plots
+
+# HVG PCA plot
+ggsave(
+  "../03_figures/04_eda/01_hvg_pca_plot.png",
+  plot = pca_plot,
+  width = 8,
+  height = 6,
+  dpi = 300
+)
+
+# scree plot
+ggsave(
+  "../03_figures/04_eda/02_scree_plot.png",
+  plot = scree_plot,
+  width = 8,
+  height = 5,
+  dpi = 300
+)
+
+# combined enrichment plot
+ggsave(
+  "../03_figures/04_eda/03_pc_enrichment_plots.png",
+  plot = pc_gobp_kegg_plot,
+  width = 16,
+  height = 18,
+  dpi = 300
+)
+
+# sample correlation heatmap
+png(                                                      # open empty graphics device
+  "../03_figures/04_eda/04_sample_correlation_plot.png",  # of this filename
+  width = 10,                                             # with this width
+  height = 9,                                             # and this height
+  units = "in",                                           # in inches
+  res = 300                                               # and this dpi
+)
+grid::grid.draw(corr_plot)                                # draw heatmap onto graphics device
+dev.off()                                                 # close graphics device
+
+cat("Saved 4 EDA plot files\n")
+```
+
+## 5. Perform Sanity Checks
+
+```{r}
+#| label: perform_sanity_checks
+
+
+hvg_pca_plot_exists <- file.exists("../03_figures/04_eda/01_hvg_pca_plot.png")
+scree_plot_exists  <- file.exists("../03_figures/04_eda/02_scree_plot.png")
+combined_enrichment_plot_exists <- file.exists("../03_figures/04_eda/03_pc_enrichment_plots.png")
+sample_corr_plot_exists <- file.exists("../03_figures/04_eda/04_sample_correlation_plot.png")
+
+
+
+# print
+cat("HVG PCA plot saved:                    ", ifelse(hvg_pca_plot_exists,  "✓", "✗"), "\n")
+cat("Scree plot saved:                      ", ifelse(scree_plot_exists, "✓", "✗"), "\n")
+cat("Combined enrichment plot saved:        ", ifelse(combined_enrichment_plot_exists,    "✓", "✗"), "\n")
+cat("Sample correlation heatmap plot saved: ", ifelse(sample_corr_plot_exists, "✓", "✗"), "\n")
+
+
+
+# check for errors
+if (all(hvg_pca_plot_exists, scree_plot_exists, combined_enrichment_plot_exists,
+        sample_corr_plot_exists)) {
+  cat("\nNotebook 04 complete — all outputs verified\n")
+} else {
+  cat("\nWARNING: One or more outputs missing\n")
+}
+```
