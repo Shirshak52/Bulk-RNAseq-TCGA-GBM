@@ -1,0 +1,495 @@
+---
+title: "Notebook 07: Perform Deconvolution"
+author: "Shirshak Aryal"
+date: today
+format:
+  html:
+    code-overflow: scroll
+    embed-resources: true
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+Perform **Deconvolution** on the **filtered `unstranded` raw counts matrix**. The primary purpose of Deconvolution in this project is to **estimate the relative abundance of distinct cell types present in each tumor sample**, using **pre-curated GBM-specific marker gene signatures** derived from the **Neftel et al. 2019 single-cell GBM atlas** and the **Moreno et al. 2022 immune cell reference.**
+
+Deconvolution provides a **cellular-level view of each tumor sample**, complementing the **gene-level** findings from **DE analysis** and **pathway enrichment** by revealing **which cell types are driving the observed transcriptomic differences** between Proneural and Mesenchymal GBM.
+
+The steps are as follows:
+
+-   **Setup**: Download the **`GBMdeconvoluteR` marker gene reference files** from GitHub.
+
+-   **Deconvolution**: Run **`MCPcounter`** using the marker gene reference files to estimate **cell type abundance scores per sample**, using:
+
+    -   **Primary reference**:
+
+        -   **Neoplastic (i.e. tumor) marker genes**: **Neftel** et al. (2019)
+
+        -   **Immune marker genes: Moreno** et al. (2022)
+
+    -   **Confirmatory reference**:
+
+        -   **Neoplastic (i.e. tumor) marker genes: Moreno** et al. (2022)
+
+        -   **Immune marker genes: Moreno** et al. (2022)
+
+    to validate the results.
+
+-   **Visualisation**: Plot **median cell type abundance scores** grouped by subtype (Proneural vs Mesenchymal) to assess **differences in cellular composition between the two subtypes**.
+
+------------------------------------------------------------------------
+
+**A note on GBM subtype biology**:
+
+-   **PN and ME subtype labels** used throughout **this project** derive from **Verhaak et al. (2010)**
+
+    -   **Verhaak used bulk RNA-seq to classify GBM tumors** into **four transcriptional subtypes** (Proneural, Mesenchymal, Classical, Neural).
+
+    -   These subtypes were **the field's primary framework for GBM heterogeneity** for nearly a **decade**.
+
+-   However, **Neftel et al. (2019)** subsequently applied **single-cell RNA-seq to GBM**
+
+    -   Neftel **revealed** that **individual tumors are not transcriptionally homogeneous**
+
+        -   **Each tumor** contains a **mixture of malignant cell states**:
+
+            -   **MES-like:** **MES**enchymal like
+
+            -   **NPC-like:** **N**eural **P**rogenitor **C**ell-like
+
+            -   **OPC-like:** **O**ligodendrocyte **P**rogenitor **C**ell-like
+
+            -   **AC-like:** **A**stro**C**yte-like
+
+            that **co-exist** and [**can change identities**]{.underline} **in response to microenvironmental signals or treatment pressure**.
+
+    -   Under this updated understanding, a **"Mesenchymal tumor"** in the **Verhaak** framework is better interpreted as a **tumor in which MES-like malignant cells dominate the bulk RNA-seq signal**. not a fundamentally distinct cancer type.
+
+**This project operates within the Verhaak bulk subtype framework** (using TCGA GBM data), but **interprets findings through the lens of Neftel's single-cell insights** **in Notebook 07 (this notebook)**, which estimates the **proportions of Neftel-defined cell states** from bulk expression data.
+
+## 1. Import Libraries
+
+```{r}
+#| label: import_libraries
+
+
+library(tidyverse)        # data manipulation and visualisation
+library(patchwork)        # combine multiple ggplot2 plots into one canvas
+library(MCPcounter)       # cell type abundance estimation from bulk RNA-seq using marker gene expression
+library(clusterProfiler)  # gene ID conversion (bitr)
+library(pheatmap)         # colorful heatmaps
+library(org.Hs.eg.db)     # human gene annotation database
+
+
+cat("\nLibraries loaded successfully\n")
+cat("tidyverse version:         ", as.character(packageVersion("tidyverse")), "\n")
+cat("patchwork version:         ", as.character(packageVersion("patchwork")), "\n")
+cat("MCPcounter version:        ", as.character(packageVersion("MCPcounter")), "\n")
+cat("clusterProfiler version:   ", as.character(packageVersion("clusterProfiler")), "\n")
+cat("pheatmap version:          ", as.character(packageVersion("pheatmap")), "\n")
+cat("org.Hs.eg.db version:      ", as.character(packageVersion("org.Hs.eg.db")), "\n")
+```
+
+## 2. Load Data
+
+### 2.1. Load Filtered Counts Matrix
+
+```{r}
+#| label: load_filtered_counts_matrix
+
+
+filtered_counts_matrix <- readRDS("../01_data/02_processed/04_filtered_counts_matrix.rds")
+cat("Filtered counts matrix loaded:", nrow(filtered_counts_matrix), "genes x", ncol(filtered_counts_matrix), "samples\n")
+```
+
+### 2.2. Load Filtered Tumor Subtype Information
+
+```{r}
+#| label: load_filtered_tumor_subtype_info
+
+
+tumor_subtype_info <- readRDS("../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
+cat("Filtered tumor subtype info loaded:", nrow(tumor_subtype_info), "samples\n")
+```
+
+## 3. Perform Deconvolution
+
+### 3.1. Download `GBMdeconvoluteR` Marker Gene Reference Datasets
+
+This project will perform **two modes of deconvolution**:
+
+-   **Primary**:
+
+    -   **Neoplastic (i.e. tumor) marker genes**: **Neftel** et al. 2019
+
+    -   **Immune marker genes: Moreno** et al. 2022
+
+-   **Confirmatory**:
+
+    -   **Neoplastic (i.e. tumor) marker genes: Moreno** et al. 2022
+
+    -   **Immune marker genes: Moreno** et al. 2022
+
+#### 3.1.1. Download Primary Deconvolution Reference Datasets
+
+```{r}
+#| label: download_primary_deconvolution_reference_datasets
+
+
+# base URL
+base_url <- "https://raw.githubusercontent.com/GliomaGenomics/GBMDeconvoluteR/main/data/"
+
+
+# Neftel neoplastic
+download.file(
+  url      = paste0(base_url, "Neftel_et_al_2019_four_state_neoplastic_markers.rds"),
+  destfile = "../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/neftel_neoplastic_markers.rds",
+  mode     = "wb"
+)
+
+# Moreno immune
+download.file(
+  url      = paste0(base_url, "Moreno_et_al_2022_lvl3_immune_markers.rds"),
+  destfile = "../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/moreno_immune_markers.rds",
+  mode     = "wb"
+)
+
+
+
+cat("Primary deconvolution reference datasets downloaded:\n")
+cat("  neftel_neoplastic_markers.rds\n")
+cat("  moreno_immune_markers.rds\n")
+```
+
+#### 3.1.2. Download Confirmatory Deconvolution Reference Datasets
+
+```{r}
+#| label: download_confirmatory_deconvolution_reference_datasets
+
+
+# base URL (same as in primary)
+base_url <- "https://raw.githubusercontent.com/GliomaGenomics/GBMDeconvoluteR/main/data/"
+
+
+# Moreno neoplastic
+download.file(
+  url      = paste0(base_url, "Moreno_et_al_2022_lvl3_neoplastic_markers.rds"),
+  destfile = "../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_neoplastic_markers.rds",
+  mode     = "wb"
+)
+
+# Moreno immune (same as in primary, but saved separately with Moreno neoplastic)
+download.file(
+  url      = paste0(base_url, "Moreno_et_al_2022_lvl3_immune_markers.rds"),
+  destfile = "../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_immune_markers.rds",
+  mode     = "wb"
+)
+
+
+
+cat("Confirmatory deconvolution reference files downloaded:\n")
+cat("  moreno_neoplastic_markers.rds\n")
+cat("  moreno_immune_markers.rds\n")
+```
+
+### 3.2. Load And Inspect Marker Gene Reference Datasets
+
+```{r}
+#| label: load_and_inspect_marker_gene_reference_datasets
+
+
+# Primary: Neftel neoplastic + Moreno immune
+neftel_neoplastic <- readRDS("../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/neftel_neoplastic_markers.rds")
+moreno_immune_primary   <- readRDS("../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/moreno_immune_markers.rds")
+
+# Confirmatory: Moreno neoplastic + Moreno immune
+moreno_neoplastic <- readRDS("../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_neoplastic_markers.rds")
+moreno_immune_confirmatory   <- readRDS("../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_immune_markers.rds")
+
+
+
+cat("Neftel neoplastic markers:\n")
+print(head(neftel_neoplastic))
+cat("\nMoreno immune markers:\n")
+print(head(moreno_immune_primary))
+cat("\nMoreno neoplastic markers:\n")
+print(head(moreno_neoplastic))
+```
+
+### 3.3. Prepare Marker Gene Reference Lists
+
+```{r}
+#| label: prepare_marker_gene_reference_lists
+
+
+# convert neoplastic named lists to dataframe format
+neoplastic_to_df <- function(marker_list) {
+  data.frame(
+    `HUGO symbols`    = unlist(marker_list),
+    `Cell population` = rep(names(marker_list), lengths(marker_list)),
+    row.names         = NULL,
+    check.names       = FALSE
+  )
+}
+
+neftel_neoplastic_df  <- neoplastic_to_df(neftel_neoplastic)
+moreno_neoplastic_df  <- neoplastic_to_df(moreno_neoplastic)
+
+
+# get cell types already in neoplastic markers
+neoplastic_cell_types_primary      <- unique(neftel_neoplastic_df$`Cell population`)
+neoplastic_cell_types_confirmatory <- unique(moreno_neoplastic_df$`Cell population`)
+
+# remove duplicate cell types from immune markers before combining
+moreno_immune_primary_dedup      <- moreno_immune_primary %>%
+                                    filter(!(`Cell population` %in% neoplastic_cell_types_primary))
+moreno_immune_confirmatory_dedup <- moreno_immune_confirmatory %>%
+                                    filter(!(`Cell population` %in% neoplastic_cell_types_confirmatory))
+
+
+# combine neoplastic and immune dataframes
+primary_markers_df      <- bind_rows(neftel_neoplastic_df, moreno_immune_primary_dedup)
+confirmatory_markers_df <- bind_rows(moreno_neoplastic_df, moreno_immune_confirmatory_dedup)
+
+cat("Primary markers nrow:           ", nrow(primary_markers_df), "\n")
+cat("Primary cell types:             ", paste(unique(primary_markers_df$`Cell population`), collapse = ", "), "\n")
+
+cat("\nConfirmatory markers nrow:      ", nrow(confirmatory_markers_df), "\n")
+cat("Confirmatory cell types:        ", paste(unique(confirmatory_markers_df$`Cell population`), collapse = ", "), "\n")
+```
+
+### 3.4. Run `MCPcounter`
+
+```{r}
+#| label: run_mcpcounter
+
+
+# expression matrix must have gene symbols as rownames
+# convert Ensembl IDs to gene symbols first
+ensembl_ids_clean <- gsub("\\..*", "", rownames(filtered_counts_matrix))
+
+symbol_map <- bitr(
+  ensembl_ids_clean,
+  fromType = "ENSEMBL",
+  toType   = "SYMBOL",
+  OrgDb    = org.Hs.eg.db
+)
+
+
+# subset matrix to mapped genes and rename rows to gene symbols
+mapped_idx        <- match(symbol_map$ENSEMBL, ensembl_ids_clean)
+expression_symbol <- filtered_counts_matrix[mapped_idx, ]
+rownames(expression_symbol) <- symbol_map$SYMBOL
+
+
+
+
+
+# run MCPcounter
+deconv_primary <- MCPcounter.estimate(
+  expression   = expression_symbol,
+  featuresType = "HUGO_symbols",
+  genes        = primary_markers_df
+)
+
+deconv_confirmatory <- MCPcounter.estimate(
+  expression   = expression_symbol,
+  featuresType = "HUGO_symbols",
+  genes        = confirmatory_markers_df
+)
+
+
+
+
+cat("Primary deconvolution complete\n")
+cat("Dimensions (cell types x samples):", dim(deconv_primary), "\n")
+cat("\nPrimary cell types retained:\n")
+print(rownames(deconv_primary))
+
+
+cat("\n\nConfirmatory deconvolution complete\n")
+cat("Dimensions (cell types x samples):", dim(deconv_confirmatory), "\n")
+cat("\nConfirmatory cell types retained:\n")
+print(rownames(deconv_confirmatory))
+```
+
+### 3.5. Visualize Deconvolution Results
+
+#### 3.5.1. Prepare Deconvolution Results
+
+```{r}
+#| label: prepare_deconvolution_results
+
+
+# convert to dataframe and add subtype labels
+deconv_primary_df <- as.data.frame(t(deconv_primary)) %>%
+                     rownames_to_column("sample_id") %>%
+                     mutate(subtype = tumor_subtype_info$paper_Transcriptome.Subtype)
+
+deconv_confirmatory_df <- as.data.frame(t(deconv_confirmatory)) %>%
+                          rownames_to_column("sample_id") %>%
+                          mutate(subtype = tumor_subtype_info$paper_Transcriptome.Subtype)
+
+cat("Primary results dimensions:", dim(deconv_primary_df), "\n")
+cat("Confirmatory results dimensions:", dim(deconv_confirmatory_df), "\n")
+```
+
+#### 3.5.2. Plot Cell Type Abundance Scores Heatmaps
+
+##### 3.5.2.1. Plot Primary Deconvolution Cell Type Abundance Scores Heatmap
+
+```{r}
+#| label: plot_primary_deconvolution_cell_type_abundance_scores_heatmap
+
+#| fig-width: 8
+#| fig-height: 6
+
+# pivot to long format for ggplot
+deconv_primary_long <- deconv_primary_df %>%
+                       pivot_longer(
+                         cols      = -c(sample_id, subtype),
+                         names_to  = "cell_type",
+                         values_to = "abundance_score"
+                       )
+
+# calculate median abundance score per cell type per subtype
+deconv_primary_median_abundance_scores <- deconv_primary_long %>%
+                                          group_by(cell_type, subtype) %>%
+                                          summarise(median_score = median(abundance_score), .groups = "drop") %>%
+                                          pivot_wider(names_from = subtype, values_from = median_score) %>%
+                                          column_to_rownames("cell_type")
+
+# plot heatmap
+deconv_primary_median_abundance_scores_heatmap <- pheatmap(
+  deconv_primary_median_abundance_scores,
+  scale        = "row",
+  cluster_cols = FALSE,
+  main         = "Primary Deconvolution: Median Abundance by Subtype",
+  color        = colorRampPalette(c("steelblue", "white", "salmon"))(100),
+  silent       = TRUE
+)$gtable
+
+wrap_elements(deconv_primary_median_abundance_scores_heatmap)
+```
+
+##### 3.5.2.2. Plot Confirmatory Deconvolution Cell Type Abundance Scores Heatmap
+
+```{r}
+#| label: plot_confirmatory_deconvolution_cell_type_abundance_scores_heatmap
+#| fig-width: 8
+#| fig-height: 6
+
+
+# pivot to long format for ggplot
+deconv_confirmatory_long <- deconv_confirmatory_df %>%
+                            pivot_longer(
+                              cols      = -c(sample_id, subtype),
+                              names_to  = "cell_type",
+                              values_to = "abundance_score"
+                            )
+
+# calculate median abundance score per cell type per subtype
+deconv_confirmatory_median_abundance_scores <- deconv_confirmatory_long %>%
+                                               group_by(cell_type, subtype) %>%
+                                               summarise(median_score = median(abundance_score), .groups = "drop") %>%
+                                               pivot_wider(names_from = subtype, values_from = median_score) %>%
+                                               column_to_rownames("cell_type")
+
+# plot heatmap
+deconv_confirmatory_median_abundance_scores_heatmap <- pheatmap(
+  deconv_confirmatory_median_abundance_scores,
+  scale        = "row",
+  cluster_cols = FALSE,
+  main         = "Confirmatory Deconvolution: Median Abundance by Subtype",
+  color        = colorRampPalette(c("steelblue", "white", "salmon"))(100),
+  silent       = TRUE
+)$gtable
+
+wrap_elements(deconv_confirmatory_median_abundance_scores_heatmap)
+```
+
+##### 3.5.3.3. Combine Primary And Confirmatory Deconvolution Heatmaps
+
+```{r}
+#| label: combine_primary_and_confirmatory_deconvolution_heatmaps
+#| fig-width: 16
+#| fig-height: 6
+
+
+deconv_combined_median_abundance_scores_heatmap <- (
+  wrap_elements(deconv_primary_median_abundance_scores_heatmap) |
+  wrap_elements(deconv_confirmatory_median_abundance_scores_heatmap)) +
+  plot_annotation(
+    title = "Deconvolution: Cell Type Abundance by Subtype",
+    theme = theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
+  )
+
+deconv_combined_median_abundance_scores_heatmap
+```
+
+The deconvolution results reveal **clear differences in cellular composition** between Proneural and Mesenchymal GBM tumors, consistent across both primary and confirmatory analyses:
+
+-   **Mesenchymal** tumors are **enriched for MES-like neoplastic cells** alongside a broad **immune and stromal infiltrate**: TAMs (Tumor-associated Macrophages), Microglia, Monocytes, Dendritic cells, T cells, B cells, NK (Natural Killer) cells, Mast cells, Endothelial cells and Mural cells are all relatively more abundant in ME samples.
+
+    -   **NOTE:** Mural cells are specialized cells that **wrap around blood vessels**. They specifically denote **pericytes** (found in **capillaries**) and **Vascular Smooth Muscle Cells** (vSMCs; found in **larger blood vessels**). **Arteries and arterioles** have **concentric vSMC layers** that form the **tunica media**. As they transition into **capillaries**, **vSMCs transition into pericytes**. As capillaries unite to form **venules and veins**, **pericytes transition into a thin layer of vSMCs** in the tunica media.
+
+-   **Proneural** tumors are **enriched for NPC-like (Neural Progenitor Cell-like) and OPC-like (Oligodendrocyte Progenitor Cell-like) neoplastic cells** alongside **neural cell types**: Neurons, Oligodendrocytes, and Radial glial cells are relatively more abundant in PN samples.
+
+These findings are **consistent** across both the **primary** (Neftel neoplastic reference) and **confirmatory** (Moreno neoplastic reference) analyses, validating the robustness of the cell type abundance estimates.
+
+## 4. Save Outputs
+
+### 4.1. Save Deconvolution Results
+
+```{r}
+#| label: save_deconvolution_results
+
+
+# save deconvolution result dataframes
+saveRDS(deconv_primary_df,      "../04_results/07_deconvolution/01_primary_deconvolution_results.rds")
+saveRDS(deconv_confirmatory_df, "../04_results/07_deconvolution/02_confirmatory_deconvolution_results.rds")
+
+cat("Deconvolution results saved\n")
+```
+
+### 4.2. Save Combined Primary And Confirmatory Deconvolution Heatmap
+
+```{r}
+#| label: save_combined_primary_and_confirmatory_deconvolution_heatmap
+
+
+png(
+  "../03_figures/07_deconvolution/deconv_combined_median_cell_type_abundance_scores_heatmap.png",
+  width = 16,
+  height = 6,
+  units = "in",
+  res = 300
+)
+grid::grid.draw(deconv_combined_median_abundance_scores_heatmap)
+dev.off()
+
+cat("Deconvolution plots saved\n")
+```
+
+## 5. Perform Sanity Checks
+
+```{r}
+#| label: perform_sanity_checks
+
+
+primary_results_exists         <- file.exists("../04_results/07_deconvolution/01_primary_deconvolution_results.rds")
+confirmatory_results_exists    <- file.exists("../04_results/07_deconvolution/02_confirmatory_deconvolution_results.rds")
+combined_heatmap_exists        <- file.exists("../03_figures/07_deconvolution/deconv_combined_median_cell_type_abundance_scores_heatmap.png")
+
+cat("Primary deconvolution results saved:                                    ", ifelse(primary_results_exists,      "✓", "✗"), "\n")
+cat("Confirmatory deconvolution results saved:                               ", ifelse(confirmatory_results_exists, "✓", "✗"), "\n")
+cat("Combined deconvolution median cell type abundance score heatmap saved:  ", ifelse(combined_heatmap_exists,     "✓", "✗"), "\n")
+
+if (all(primary_results_exists, confirmatory_results_exists,
+        combined_heatmap_exists)) {
+  cat("\nNotebook 07 complete — all outputs verified\n")
+} else {
+  cat("\nWARNING: One or more outputs missing\n")
+}
+```
