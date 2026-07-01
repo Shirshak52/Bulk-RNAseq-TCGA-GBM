@@ -117,20 +117,20 @@ conda activate gbm_project_env
 
 ## Usage
 
-Execute notebooks sequentially (00 → 09). Each notebook saves intermediate outputs consumed by the next.
+Execute notebooks sequentially (00 → 09). Each notebook saves intermediate outputs consumed by the next. Click any notebook name to view its rendered HTML report.
 
-| Notebook                                  | Description                                                     |
-| :---------------------------------------- | :-------------------------------------------------------------- |
-| `00_setup_project_env.qmd`                | Project directory setup, package verification                   |
-| `01_download_raw_data.qmd`                | TCGA-GBM counts matrix and clinical metadata download           |
-| `02_prepare_dataset.qmd`                  | SummarizedExperiment preparation, counts/metadata extraction    |
-| `03_perform_qc.qmd`                       | Subtype/gene filtering, low-expression and outlier removal      |
-| `04_perform_eda.qmd`                      | PCA, scree plot, PC-level pathway enrichment                    |
-| `05_perform_de_analysis.qmd`              | DESeq2 + EdgeR DE analysis, volcano plots, consensus gene lists |
-| `06_perform_pathway_enrichment.qmd`       | ORA + GSEA against <GO:BP> and KEGG databases                   |
-| `07_perform_deconvolution.qmd`            | MCPcounter deconvolution with GBM-specific marker sets          |
-| `08_integrate_and_interpret_findings.qmd` | GSVA, correlation heatmap, KM + Cox survival analysis           |
-| `09_project_summary.qmd`                  | End-to-end project summary with all figures                     |
+| Notebook                                                                                                                                             | Description                                                     |
+| :--------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------------------------- |
+| [`00_setup_project_env.qmd`](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/02_notebooks/00_setup_project_env.html)                               | Project directory setup, package verification                   |
+| [`01_download_raw_data.qmd`](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/02_notebooks/01_download_raw_data.html)                               | TCGA-GBM counts matrix and clinical metadata download           |
+| [`02_prepare_dataset.qmd`](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/02_notebooks/02_prepare_dataset.html)                                   | SummarizedExperiment preparation, counts/metadata extraction    |
+| [`03_perform_qc.qmd`](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/02_notebooks/03_perform_qc.html)                                             | Subtype/gene filtering, low-expression and outlier removal      |
+| [`04_perform_eda.qmd`](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/02_notebooks/04_perform_eda.html)                                           | PCA, scree plot, PC-level pathway enrichment                    |
+| [`05_perform_de_analysis.qmd`](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/02_notebooks/05_perform_de_analysis.html)                           | DESeq2 + EdgeR DE analysis, volcano plots, consensus gene lists |
+| [`06_perform_pathway_enrichment.qmd`](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/02_notebooks/06_perform_pathway_enrichment.html)             | ORA + GSEA against GO:BP and KEGG databases                     |
+| [`07_perform_deconvolution.qmd`](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/02_notebooks/07_perform_deconvolution.html)                       | MCPcounter deconvolution with GBM-specific marker sets          |
+| [`08_integrate_and_interpret_findings.qmd`](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/02_notebooks/08_integrate_and_interpret_findings.html) | GSVA, correlation heatmap, KM + Cox survival analysis           |
+| [`09_project_summary.qmd`](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/02_notebooks/09_project_summary.html)                                   | End-to-end project summary with all figures                     |
 
 ## Method Overview
 
