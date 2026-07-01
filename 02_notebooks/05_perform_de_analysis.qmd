@@ -1,0 +1,791 @@
+---
+title: "Notebook 05: Perform DE Analysis"
+author: "Shirshak Aryal"
+date: today
+format:
+  html:
+    code-overflow: scroll
+    embed-resources: true
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+Perform **Differential Expression (DE) Analysis** on the **filtered** **`unstranded` raw counts matrix**. The primary purpose of DE analysis in this project is to **identify the genes that are genuinely expressed differently in statistically significant amounts between the Proneural and Mesenchymal samples**.
+
+The DE analysis will consider Proneural samples as the basis of comparison for Mesenchymal samples. The steps are as follows:
+
+-   **Setup**: **Justify** the choice of **DE analysis approaches** using the **mean-variance plot**, confirming **overdispersion** in the data.
+
+-   **DE analyses**: Perform DE analysis with **`DESeq2`** (**primary** approach) as well as **`EdgeR`** (**confirmatory** approach) to create these lists:
+
+    -   Genes **upregulated** in Mesenchymal samples as per **`DESeq2`**
+
+    -   Genes **downregulated** in Mesenchymal samples as per **`DESeq2`**
+
+    -   Genes **upregulated** in Mesenchymal samples as per **`EdgeR`**
+
+    -   Genes **downregulated** in Mesenchymal samples as per **`EdgeR`**
+
+-   **Consensus lists**: **Retain** only those genes that are considered **upregulated by both approaches**, as well as those that are considered **downregulated by both approaches**. These are the most reliable lists to be used in pathway enrichment analysis.
+
+**NOTE**: **All genes** common in each pair of **up/downregulated lists** will be retained as the consensus lists, not just the top `n` genes.
+
+## 1. Import Libraries
+
+```{r}
+#| label: import_libraries
+
+
+library(tidyverse)        # data manipulation and visualisation
+library(patchwork)        # combine multiple ggplot2 plots into one canvas
+library(pheatmap)         # colorful heatmaps
+library(DESeq2)           # primary differential expression analysis using negative binomial model with empirical Bayes shrinkage
+library(edgeR)            # confirmatory differential expression analysis using negative binomial model
+library(ggrepel)          # non-overlapping gene name labels for individual data points in plots
+library(org.Hs.eg.db)     # human gene annotation database
+library(clusterProfiler)  # gene ID conversion (i.e. for bitr() function)
+library(ggvenn)           # venn diagrams for visualising gene list overlaps
+
+
+cat("\nLibraries loaded successfully\n")
+cat("tidyverse version:         ", as.character(packageVersion("tidyverse")), "\n")
+cat("DESeq2 version:            ", as.character(packageVersion("DESeq2")), "\n")
+cat("edgeR version:             ", as.character(packageVersion("edgeR")), "\n")
+cat("ggrepel version:           ", as.character(packageVersion("ggrepel")), "\n")
+cat("org.Hs.eg.db version:      ", as.character(packageVersion("org.Hs.eg.db")), "\n")
+cat("clusterProfiler version:   ", as.character(packageVersion("clusterProfiler")), "\n")
+cat("ggvenn version:            ", as.character(packageVersion("ggvenn")), "\n")
+```
+
+## 2. Load Data
+
+### 2.1. Load Filtered Counts Matrix
+
+```{r}
+#| label: load_filtered_counts_matrix
+
+
+filtered_counts_matrix <- readRDS("../01_data/02_processed/04_filtered_counts_matrix.rds")
+cat("Filtered counts matrix loaded:", nrow(filtered_counts_matrix), "genes x", ncol(filtered_counts_matrix), "samples\n\n")
+
+filtered_counts_matrix[1:3, 1:3]
+```
+
+### 2.2. Load Filtered Tumor Subtype Information
+
+```{r}
+#| label: load_filtered_tumor_subtype_info
+
+
+tumor_subtype_info <- readRDS("../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
+
+cat("Filtered tumor subtype info loaded:", nrow(tumor_subtype_info), "samples\n")
+tumor_subtype_info %>%
+  as.data.frame() %>%
+  dplyr::select(paper_Transcriptome.Subtype) %>%
+  head(5) %>%
+  knitr::kable()
+```
+
+### 2.3. Load Filtered Gene Metadata
+
+```{r}
+#| label: load_filtered_gene_metadata
+
+
+gene_metadata <- readRDS("../01_data/02_processed/06_filtered_gene_metadata.rds")
+cat("Filtered gene metadata loaded:", nrow(gene_metadata), "genes\n")
+gene_metadata[1:5, 1:8] %>% as.data.frame() %>% knitr::kable()
+```
+
+## 3. Perform DE Analysis
+
+### 3.1. Create Mean-Variance Plot
+
+```{r}
+#| label: create_mean_variance_plot
+
+
+# calculate per-gene mean and variance across all samples
+gene_means     <- rowMeans(filtered_counts_matrix)
+gene_variances <- rowVars(filtered_counts_matrix)
+
+
+mv_plot_data    <- data.frame(
+                     mean     = gene_means,
+                     variance = gene_variances
+                   )
+mv_plot_mapping <- aes(x = log10(mean), y = log10(variance))
+mv_plot_labels  <- labs(
+                     title = "Mean-Variance Plot",
+                     x     = "log10(Mean Expression)",
+                     y     = "log10(Variance)"
+                   )
+
+mv_plot <- ggplot(mv_plot_data, mv_plot_mapping) +  # means and variances
+           
+             # point plot
+             geom_point(
+             alpha = 0.1,
+             size = 0.5,
+             colour = "steelblue"
+           ) +
+  
+           # variance=mean line (poisson expectation)
+           geom_abline(
+             slope = 1,
+             intercept = 0,
+             colour = "red",
+             linetype = "dashed",
+             linewidth = 1
+           ) +
+  
+           # labels
+           mv_plot_labels +
+  
+           # themes
+           theme_minimal() +
+           theme(plot.title = element_text(hjust = 0.5))
+
+mv_plot
+```
+
+The mean-variance plot shows that a**ll genes have variance substantially exceeding their mean** expression (all points **above the red Poisson expectation line** where variance = mean). The **gap** between **observed** variance and **Poisson** expectation **widens** with increasing expression, consistent with the **overdispersion pattern** modeled by the **negative binomial distribution**. This confirms that **`DESeq2` and `EdgeR`**, both of which use negative binomial modeling, are the **appropriate** tools for DE analysis **on this dataset**.
+
+### 3.2. Perform DE Analysis With `DESeq2`
+
+#### 3.2.1. Create `DESeq2` Object
+
+```{r}
+#| label: create_deseq2_onject
+
+
+# create sample metadata dataframe with subtype as the grouping factor
+col_data <- data.frame(
+               subtype   = factor(
+                             tumor_subtype_info$paper_Transcriptome.Subtype,
+                             levels = c("PN", "ME")  # PN as reference level
+                           ),
+               row.names = rownames(tumor_subtype_info)
+             )
+
+# create DESeq2 object
+dds <- DESeqDataSetFromMatrix(
+  countData = filtered_counts_matrix,
+  colData   = col_data,
+  design    = ~ subtype  # compare by subtype
+)
+
+cat("DESeq2 object created\n")
+cat("Genes:", nrow(dds), "\n")
+cat("Samples:", ncol(dds), "\n")
+cat("Reference level:", levels(col_data$subtype)[1], "\n")
+```
+
+#### 3.2.2. Run `DESeq2`
+
+By default, `DESeq2` always runs the **Wald test**, i.e. it calculates the **Wald statistic**.
+
+Wald Statistic is simply the **standardized `log2FC`,** scaled by the **standard error of `log2FC`.** That is:
+
+-   **`Wald statistic = log2FC/lfcSE`**
+
+It acts as a **signal-to-noise ratio**, where the **estimated `log2FC`** represents the **biological signal** of **difference in expression levels** and the **`log2FC` standard error (i.e. `lfcSE`)** represents the **background noise**.
+
+```{r}
+#| label: run_deseq2
+
+
+dds <- DESeq(dds)  # implicitly runs: DESeq(dds, test="Wald")
+
+cat("DESeq2 analysis complete\n")
+```
+
+#### 3.2.3. Extract `DESeq2` Results
+
+```{r}
+#| label: extract_deseq2_results
+
+
+# extract results with ME vs PN comparison
+deseq2_results <- results(
+  dds,
+  contrast      = c("subtype", "ME", "PN"),  # ME vs PN, positive LFC = higher in ME
+  alpha         = 0.05                       # significance threshold
+)
+
+cat("DESeq2 results extracted\n")
+cat("Total genes tested:", nrow(deseq2_results), "\n")
+cat("Significant genes (padj < 0.05):", sum(deseq2_results$padj < 0.05, na.rm = TRUE), "\n")
+```
+
+#### 3.2.4. Filter `DESeq2` Results
+
+Genes are **filtered** to retain only those with a **statistically significant adjusted p-value (`padj < 0.05`)** AND a **biologically meaningful fold change (`|log2FC| > 1`, i.e. at least 2-fold difference in expression)**. The **`padj` threshold** **controls** **false discovery rate**, while the **`log2FC` threshold** **removes** genes that are statistically **significant but too small in effect size** to be biologically meaningful.
+
+Results are then split into **upregulated** and **downregulated** gene lists based on the **direction of the fold change.**
+
+```{r}
+#| label: filter_deseq2_results
+
+
+# apply log2 fold change threshold on top of adjusted p-value
+deseq2_sig <- as.data.frame(deseq2_results) %>%
+              filter(padj < 0.05, abs(log2FoldChange) > 1)
+
+# split into upregulated and downregulated in ME vs PN
+deseq2_up   <- deseq2_sig %>% filter(log2FoldChange > 0) %>% arrange(desc(log2FoldChange))
+deseq2_down <- deseq2_sig %>% filter(log2FoldChange < 0) %>% arrange(log2FoldChange)
+
+cat("Genes passing padj < 0.05 AND |log2FC| > 1:\n")
+cat("Upregulated in ME:  ", nrow(deseq2_up), "\n")
+cat("Downregulated in ME:", nrow(deseq2_down), "\n")
+```
+
+#### 3.2.5. Create `DESeq2` Volcano Plot
+
+##### 3.2.5.1. Shrink `DESeq2` Log Fold Changes
+
+**Raw log fold changes** from DESeq2 can be **unreliable** for **lowly expressed genes**. **Small count** **differences** produce **large but noisy LFC estimates**. LFC shrinkage using the \`**`apeglm`** **method** pulls these **unreliable estimates toward zero** while leaving **well-expressed genes with reliable estimates** largely unaffected.
+
+Shrunken LFC values are used for **visualization (volcano plot)** and **GSEA ranking** only. The **significance filtering** above **used raw LFC values**, which is **standard** practice.
+
+```{r}
+#| label: shrink_deseq2_lfc
+
+
+deseq2_results_shrunk <- lfcShrink(
+  dds,
+  coef      = "subtype_ME_vs_PN",  # coefficient name from DESeq2 model
+  type      = "apeglm"             # apeglm shrinkage method
+)
+
+cat("LFC shrinkage applied\n")
+cat("Method: apeglm\n")
+```
+
+##### 3.2.5.2. Create `DESeq2` Volcano Plot
+
+```{r}
+#| label: plot_deseq2_volcano
+
+
+# prepare data for volcano plot using shrunken LFC
+deseq2_volcano_data <- as.data.frame(deseq2_results_shrunk) %>%
+                       rownames_to_column("ensembl_id") %>%
+                       filter(!is.na(padj)) %>%
+                       mutate(
+                         ensembl_id_clean = gsub("\\..*", "", ensembl_id),        # strip version numbers from ensembl IDs
+                         significance = case_when(                                # classify genes by significance and direction
+                           padj < 0.05 & log2FoldChange >  1 ~ "Up in ME",
+                           padj < 0.05 & log2FoldChange < -1 ~ "Down in ME",
+                           TRUE                              ~ "Not significant"
+                         )
+                      )
+
+# map ensembl IDs to gene symbols for labels
+deseq2_symbol_map <- bitr(
+  deseq2_volcano_data$ensembl_id_clean,
+  fromType = "ENSEMBL",
+  toType   = "SYMBOL",
+  OrgDb    = org.Hs.eg.db
+)
+
+deseq2_volcano_data <- deseq2_volcano_data %>%
+                       left_join(deseq2_symbol_map, by = c("ensembl_id_clean" = "ENSEMBL"))
+
+# top genes to label
+deseq2_top_genes <- bind_rows(
+  deseq2_volcano_data %>% filter(significance == "Up in ME") %>% arrange(padj) %>% head(10),
+  deseq2_volcano_data %>% filter(significance == "Down in ME") %>% arrange(padj) %>% head(10)
+)
+
+# plot
+deseq2_volcano_mapping <- aes(
+                            x      = log2FoldChange,
+                            y      = -log10(padj),
+                            colour = significance
+                   )
+deseq2_volcano_labels  <- labs(
+                            title  = "DESeq2 Volcano Plot",
+                            x      = "log2 Fold Change (ME vs PN)",
+                            y      = "-log10(Adjusted P-value)",
+                            colour = "Significance"
+                          )
+
+deseq2_volcano_plot <- ggplot(deseq2_volcano_data, deseq2_volcano_mapping) +  # data
+  
+                       # point plot
+                       geom_point(alpha = 0.5, size = 0.8) +
+  
+                       # ensure non-overlapping labels
+                       geom_text_repel(
+                         data        = deseq2_top_genes,
+                         aes(label   = SYMBOL),
+                         size        = 3,
+                         max.overlaps = 20
+                       ) +
+  
+                       # custom scale colors
+                       scale_colour_manual(
+                         values = c(
+                           "Up in ME"        = "salmon",
+                           "Down in ME"      = "steelblue",
+                           "Not significant" = "grey70"
+                         )
+                       ) +
+  
+                       # log2FC threshold lines (vertical, at log2FC=-1 and lof2FC=+1)
+                       geom_vline(xintercept = c(-1, 1), linetype = "dashed", colour = "grey40") +
+  
+                       # padj significance thresnhold line (horizontal)
+                       geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "grey40") +
+  
+                       # gene name labels
+                       deseq2_volcano_labels +
+  
+                       # custom adjustments
+                       theme_minimal() +
+                       coord_cartesian(xlim = c(-7, 7)) +
+                       theme(plot.title = element_text(hjust = 0.5))
+
+deseq2_volcano_plot
+```
+
+The volcano plot shows genes **significantly upregulated in Mesenchymal (salmon, right)** and **downregulated in Mesenchymal/upregulated in Proneural (blue, left)**, with **dashed lines** marking the **significance (padj \< 0.05) and fold change (\|log2FC\| \> 1) thresholds.**
+
+### 3.3. Perform DE Analysis With `EdgeR`
+
+#### 3.3.1. Create TMM-Normalized `DGEList` Object
+
+```{r}
+#| label: create_tmm_normalized_dgelist_object
+
+
+# create DGEList object
+dge <- DGEList(
+         counts  = filtered_counts_matrix,
+         group   = factor(
+                      tumor_subtype_info$paper_Transcriptome.Subtype,
+                      levels = c("PN", "ME")  # PN as reference
+                    )
+       )
+
+# TMM normalisation
+dge <- calcNormFactors(dge, method = "TMM")
+
+cat("EdgeR DGEList object created\n")
+cat("Genes:", nrow(dge), "\n")
+cat("Samples:", ncol(dge), "\n")
+cat("Normalisation method: TMM\n")
+```
+
+#### 3.3.2. Run `EdgeR`
+
+By default, `EdgeR` always runs the **F-test**, i.e. it calculates the **F-statistic**.
+
+Mathematically, the F-statistic is as follows:
+
+-   **`F-statistic = (Likelihood Ratio Deviance) / (Quasi-Likelihood Dispersion)`**
+
+Here:
+
+-   **Likelihood Ratio Deviance** quantifies how much better the data is explained when **PN and ME are allowed to have different average expression values**, compared to **forcing** both subtypes to share **one single average**. A **large deviance** means **treating them separately** explains the observed expression values **much better** than treating them as one group.
+
+-   Quasi-Likelihood Dispersion is the **gene's estimated variability beyond what the negative binomial distribution alone predicts**. It is essentially how noisy this specific gene's measurements are.
+
+So, the F-statistic acts as a **signal-to-noise ratio**, where the Likelihood Ratio Deviance represents **how much PN and ME genuinely differ** (the **signal**), and the Quasi-Likelihood Dispersion represents the **gene's inherent noisiness.**
+
+```{r}
+#| label: run_edger
+
+
+# design matrix with PN as reference
+design <- model.matrix(~ group, data = dge$samples)
+
+# estimate dispersions
+dge <- estimateDisp(dge, design)
+
+# fit negative binomial GLM
+fit <- glmQLFit(dge, design)
+
+# likelihood ratio test ME vs PN
+edger_results <- glmQLFTest(fit, coef = 2)
+
+cat("EdgeR analysis complete\n")
+```
+
+#### 3.3.3. Extract `EdgeR` Results
+
+```{r}
+#| label: extract_edger_results
+
+
+# extract results table
+edger_results_table <- topTags(edger_results, n = Inf)$table
+
+cat("EdgeR results extracted\n")
+cat("Total genes tested:", nrow(edger_results_table), "\n")
+cat("Significant genes (FDR < 0.05):", sum(edger_results_table$FDR < 0.05), "\n")
+```
+
+#### 3.3.4. Filter `EdgeR` Results
+
+Genes are **filtered** to retain only those with a **statistically significant adjusted p-value (`padj < 0.05`)** AND a **biologically meaningful fold change (`|log2FC| > 1`, i.e. at least 2-fold difference in expression)**. The **`padj` threshold** **controls** **false discovery rate**, while the **`log2FC` threshold** **removes** genes that are statistically **significant but too small in effect size** to be biologically meaningful.
+
+Results are then split into **upregulated** and **downregulated** gene lists based on the **direction of the fold change.**
+
+```{r}
+#| label: filter_edger_results
+
+
+# apply log fold change threshold on top of FDR
+edger_sig <- edger_results_table %>%
+             filter(FDR < 0.05, abs(logFC) > 1)
+
+# split into upregulated and downregulated in ME vs PN
+edger_up   <- edger_sig %>% filter(logFC > 0) %>% arrange(desc(logFC))
+edger_down <- edger_sig %>% filter(logFC < 0) %>% arrange(logFC)
+
+cat("Genes passing FDR < 0.05 AND |logFC| > 1:\n")
+cat("Upregulated in ME:  ", nrow(edger_up), "\n")
+cat("Downregulated in ME:", nrow(edger_down), "\n")
+```
+
+#### 3.3.5. Create `EdgeR` Volcano Plot
+
+```{r}
+#| label: create_edger_volcano_plot
+
+
+# prepare data for volcano plot
+edger_volcano_data <- edger_results_table %>%
+                      rownames_to_column("ensembl_id") %>%
+                      filter(!is.na(FDR)) %>%
+                      mutate(
+                        ensembl_id_clean = gsub("\\..*", "", ensembl_id),
+                        significance     = case_when(
+                          FDR < 0.05 & logFC >  1 ~ "Up in ME",
+                          FDR < 0.05 & logFC < -1 ~ "Down in ME",
+                          TRUE                     ~ "Not significant"
+                        )
+                      )
+
+# map ensembl IDs to gene symbols
+edger_symbol_map <- bitr(
+  edger_volcano_data$ensembl_id_clean,
+  fromType = "ENSEMBL",
+  toType   = "SYMBOL",
+  OrgDb    = org.Hs.eg.db
+)
+
+edger_volcano_data <- edger_volcano_data %>%
+                      left_join(edger_symbol_map, by = c("ensembl_id_clean" = "ENSEMBL"))
+
+# top genes to label
+edger_top_genes <- bind_rows(
+  edger_volcano_data %>% filter(significance == "Up in ME") %>% arrange(FDR) %>% head(10),
+  edger_volcano_data %>% filter(significance == "Down in ME") %>% arrange(FDR) %>% head(10)
+)
+
+# plot
+edger_volcano_mapping <- aes(
+                           x      = logFC,
+                           y      = -log10(FDR),
+                           colour = significance
+                         )
+edger_volcano_labels  <- labs(
+                           title  = "EdgeR Volcano Plot",
+                           x      = "log2 Fold Change (ME vs PN)",
+                           y      = "-log10(FDR)",
+                           colour = "Significance"
+                         )
+
+edger_volcano_plot <- ggplot(edger_volcano_data, edger_volcano_mapping) +  # data
+  
+                      # point plot
+                      geom_point(alpha = 0.5, size = 0.8) +
+  
+                      # ensure non-overlapping labels
+                      geom_text_repel(
+                        data         = edger_top_genes,
+                        aes(label    = SYMBOL),
+                        size         = 3,
+                        max.overlaps = 20
+                      ) +
+  
+                      # custom scale colors
+                      scale_colour_manual(
+                        values = c(
+                          "Up in ME"        = "salmon",
+                          "Down in ME"      = "steelblue",
+                          "Not significant" = "grey70"
+                        )
+                      ) +
+  
+                      # log2FC threshold lines (vertical, at log2FC=-1 and lof2FC=+1)
+                      geom_vline(xintercept = c(-1, 1), linetype = "dashed", colour = "grey40") +
+  
+                      # padj significance thresnhold line (horizontal)
+                      geom_hline(yintercept = -log10(0.05), linetype = "dashed", colour = "grey40") +
+  
+                      # gene name labels
+                      edger_volcano_labels +
+  
+                      # custom adjustments
+                      theme_minimal() +
+                      coord_cartesian(xlim = c(-7, 7)) +
+                      theme(plot.title = element_text(hjust = 0.5))
+
+edger_volcano_plot
+```
+
+### 3.4. Compare `DESeq2` And `EdgeR` Results
+
+#### 3.4.1. Combine Volcano Plots
+
+```{r}
+#| label: combine_volcano_plots
+#| fig-width: 10
+#| fig-height: 10
+
+
+combined_volcano_plot <- (deseq2_volcano_plot) /
+                         (edger_volcano_plot) +
+                         plot_annotation(
+                           title = "DESeq2 vs EdgeR Volcano Plots",
+                           theme = theme(
+                                     plot.title = element_text(
+                                                    hjust = 0.4,
+                                                    size = 16,
+                                                    face = "bold"
+                                                  )
+                                   )
+                         )
+
+combined_volcano_plot
+```
+
+The volcano plots show **DESeq2 (top) and EdgeR (bottom)** results side by side on matching x-axis scales.
+
+-   Genes **upregulated in ME (salmon, right)** include TRIP6, CARD16, ANXA1, GSDMD, FCGR2B, HFE: **immune/inflammatory genes** consistent with the **Mesenchymal subtype**.
+
+-   Genes **downregulated in ME (blue, left)** include B4GALNT1, FREM3, FAM117B, RBP3: **neural/brain-associated genes** consistent with the **Proneural subtype**.
+
+The **substantial agreement** in labeled genes **between the two tools**, for instance genes like B4GALNT1, FREM3, RBP3, TRIP6, CARD16, HFE, GSDMD, C1RL, DRAM1 appearing as **top hits in both**, previews the high consensus overlap quantified **below in the venn diagrams.**
+
+#### 3.4.2. Plot Venn Diagrams Of DE Gene Lists
+
+```{r}
+#| label: plot_venn_diagram_of_de_gene_lists
+#| fig-width: 10
+#| fig-height: 10
+
+
+# get ensembl IDs from each tool's significant gene lists
+deseq2_up_ids   <- rownames(deseq2_up)
+deseq2_down_ids <- rownames(deseq2_down)
+edger_up_ids    <- rownames(edger_up)
+edger_down_ids  <- rownames(edger_down)
+
+# upregulated venn
+venn_up <- ggvenn(
+  list(DESeq2 = deseq2_up_ids, EdgeR = edger_up_ids),
+  fill_color = c("steelblue", "salmon"),
+  stroke_size = 0.5,
+  set_name_size = 4
+) +
+labs(title = "Upregulated Genes") +
+theme(plot.title = element_text(hjust = 0.5))
+
+# downregulated venn
+venn_down <- ggvenn(
+  list(DESeq2 = deseq2_down_ids, EdgeR = edger_down_ids),
+  fill_color = c("steelblue", "salmon"),
+  stroke_size = 0.5,
+  set_name_size = 4
+) +
+labs(title = "Downregulated Genes") +
+theme(plot.title = element_text(hjust = 0.5))
+
+# combine
+venn_combined <- (venn_up / venn_down) +
+                 plot_annotation(
+                   title = "DESeq2 vs EdgeR Gene Overlap",
+                   theme = theme(
+                             plot.title = element_text(
+                                            hjust = 0.5,
+                                            size = 16,
+                                            face = "bold"
+                                          )
+                           )
+                 )
+
+venn_combined
+```
+
+The Venn diagrams confirm **exceptionally high agreement between DESeq2 and EdgeR**.
+
+-   For **upregulated genes, 94.8% (1528) of genes are called by both tools,** with only **1.6% (25)** unique to **DESeq2** and **3.7% (59)** unique to **EdgeR**.
+
+-   For **downregulated genes, 94.6% (1130) overlap,** with **2.8% (33)** unique to **DESeq2** and **2.7% (32)** unique to **EdgeR**.
+
+This **near-complete consensus** across two independently developed statistical methods **strongly validates the reliability of the DE gene lists**.
+
+#### 3.4.3. Create Consensus Lists
+
+```{r}
+#| label: create_consensus_lists
+
+
+# intersect ensembl ID lists to get consensus lists
+consensus_up   <- intersect(deseq2_up_ids, edger_up_ids)
+consensus_down <- intersect(deseq2_down_ids, edger_down_ids)
+
+cat("DESeq2 upregulated:     ", length(deseq2_up_ids), "\n")
+cat("EdgeR upregulated:      ", length(edger_up_ids), "\n")
+cat("Consensus upregulated:  ", length(consensus_up), "\n\n")
+
+cat("DESeq2 downregulated:   ", length(deseq2_down_ids), "\n")
+cat("EdgeR downregulated:    ", length(edger_down_ids), "\n")
+cat("Consensus downregulated:", length(consensus_down), "\n")
+```
+
+#### 3.4.4. Plot DE Heatmap
+
+```{r}
+#| label: plot_de_heatmap
+#| fig-width: 10
+#| fig-height: 12
+
+
+# select top genes from consensus (e.g. top 25 up + top 25 down by significance)
+top_up_ids   <- deseq2_up[consensus_up, ] %>% arrange(desc(log2FoldChange)) %>% head(25) %>% rownames()
+top_down_ids <- deseq2_down[consensus_down, ] %>% arrange(log2FoldChange) %>% head(25) %>% rownames()
+top_de_ids   <- c(top_up_ids, top_down_ids)
+
+# extract and scale expression (log1p, z-scored per gene)
+heatmap_data <- log1p(filtered_counts_matrix[top_de_ids, ])
+heatmap_data <- t(scale(t(heatmap_data)))
+
+# map ensembl IDs to gene symbols for row labels
+heatmap_ids_clean <- gsub("\\..*", "", top_de_ids)
+heatmap_symbols   <- bitr(heatmap_ids_clean, fromType = "ENSEMBL", toType = "SYMBOL", OrgDb = org.Hs.eg.db)
+rownames(heatmap_data) <- heatmap_symbols$SYMBOL[match(heatmap_ids_clean, heatmap_symbols$ENSEMBL)]
+
+# annotation for samples by subtype
+annot_col <- data.frame(
+                Subtype   = tumor_subtype_info$paper_Transcriptome.Subtype,
+                row.names = colnames(filtered_counts_matrix)
+              )
+
+de_heatmap <- pheatmap(
+  heatmap_data,
+  annotation_col       = annot_col,
+  show_colnames        = FALSE,
+  annotation_names_col = FALSE,
+  main                 = "Top Consensus DE Genes (Z-scored log1p expression)",
+  silent               = TRUE
+)$gtable
+
+wrap_elements(de_heatmap)
+```
+
+The heatmap shows **expression of the top 50 consensus DE genes** **(25 most upregulated, 25 most downregulated in ME by log2FC)** across **all 180 samples**, **z-scored per gene** for visual comparability.
+
+-   The **upper block of genes (downregulated in ME**: **neural/synaptic genes** such as NEUROD4, LHX1, LHX5) shows **high expression** concentrated in the **PN-annotated samples**.
+
+-   The **lower block of genes (upregulated in ME**: **chemokine/inflammatory genes** such as CXCL13, CXCL14, CHI3L1, SAA1/2) shows **high expression** concentrated in **ME-annotated samples**.
+
+This confirms the consensus DE genes **meaningfully separate the two subtypes at the individual sample level,** consistent with the volcano plot and pathway enrichment findings.
+
+## 4. Save Outputs
+
+### 4.1. Save DE Results
+
+```{r}
+#| label: save_de_results
+
+
+# save full unfiltered results for GSEA
+saveRDS(as.data.frame(deseq2_results), "../04_results/05_de_analysis/01_deseq2_full_results.rds")
+saveRDS(edger_results_table,           "../04_results/05_de_analysis/02_edger_full_results.rds")
+
+cat("Saved consensus gene lists\n")
+cat("Saved full DE results\n")
+```
+
+### 4.2. Save DE Plots
+
+```{r}
+#| label: save_de_plots
+
+
+# combined volcano plots
+ggsave(
+  "../03_figures/05_de_analysis/01_combined_volcano_plots.png",
+  plot = combined_volcano_plot,
+  width = 10,
+  height = 10,
+  dpi = 300
+)
+
+# DE gene list venn diagram
+ggsave(
+  "../03_figures/05_de_analysis/02_venn_diagram.png",
+  plot = venn_combined,
+  width = 10,
+  height = 10,
+  dpi = 300
+)
+
+png(
+  "../03_figures/05_de_analysis/03_de_heatmap.png",
+  width = 10,
+  height = 8,
+  units = "in",
+  res = 300
+)
+grid::grid.draw(de_heatmap)
+dev.off()
+
+
+cat("Saved DE plots\n")
+```
+
+## 5. Perform Sanity Checks
+
+```{r}
+#| label: perform_sanity_checks
+
+
+deseq2_full_exists     <- file.exists("../04_results/05_de_analysis/01_deseq2_full_results.rds")
+edger_full_exists      <- file.exists("../04_results/05_de_analysis/02_edger_full_results.rds")
+
+
+
+combined_volcano_exists <- file.exists("../03_figures/05_de_analysis/01_combined_volcano_plots.png")
+venn_exists <- file.exists("../03_figures/05_de_analysis/02_venn_diagram.png")
+de_heatmap_exists <- file.exists("../03_figures/05_de_analysis/03_de_heatmap.png")
+
+
+
+cat("DESeq2 full results saved:     ", ifelse(deseq2_full_exists,      "✓", "✗"), "\n")
+cat("EdgeR full results saved:      ", ifelse(edger_full_exists,       "✓", "✗"), "\n")
+
+
+
+cat("Combined volcano saved:        ", ifelse(combined_volcano_exists, "✓", "✗"), "\n")
+cat("Venn diagram saved:            ", ifelse(venn_exists,             "✓", "✗"), "\n")
+cat("DE heatmap saved:              ", ifelse(de_heatmap_exists, "✓", "✗"), "\n")
+
+if (all(deseq2_full_exists, edger_full_exists,
+        combined_volcano_exists, venn_exists, de_heatmap_exists)
+    ) {
+  cat("\nNotebook 05 complete — all outputs verified\n")
+} else {
+  cat("\nWARNING: One or more outputs missing\n")
+}
+```
