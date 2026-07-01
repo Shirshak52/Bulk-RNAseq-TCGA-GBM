@@ -1,0 +1,1558 @@
+---
+title: "Notebook 08: Integrate And Interpret Findings"
+author: "Shirshak Aryal"
+date: today
+format:
+  html:
+    code-overflow: scroll
+    embed-resources: true
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+This notebook integrates:
+
+-   **Notebook 06 (Pathway Enrichment) findings**
+
+-   **Notebook 07 (Deconvolution) findings**
+
+-   **Patient clinical metadata**
+
+to construct a **unified biological portrait of Proneural (PN) and Mesenchymal (ME) GBM subtypes**, and to test whether the biological differences between these subtypes carry **clinical consequences for patient survival**.
+
+------------------------------------------------------------------------
+
+The central analytical goal is a **Cox proportional hazards model:**
+
+-   A **multivariate** survival model (a **statistical model**, not a machine learning model) that **simultaneously** **tests** **whether** **pathway activity, cellular composition, and subtype independently predict how long patients survive**, controlling for all other variables at once.
+
+-   Unlike simpler approaches that test one variable at a time, the Cox model asks: "of all the biological differences between ME and PN tumors, **which ones actually matter for survival, independently of each other?**"
+
+------------------------------------------------------------------------
+
+To **ensure the Cox model receives the** **highest-quality, non-redundant inputs,** the following **preparatory steps** are performed:
+
+-   **Pathway synthesis**: **ORA and GSEA results (Notebook 06)** are synthesised to **identify the dominant biological themes distinguishing ME from PN tumors,** establishing what the transcriptional differences between subtypes actually mean biologically.
+
+-   **Per-sample pathway activity scoring (GSVA)**: Subtype-level pathway findings (i.e. the **ORA and GSEA results**) are **translated into** **per-sample continuous scores**, making **pathway activity** a variable that can be **measured for each individual tumor sample** rather than just compared between subtypes.
+
+-   **Deconvolution-pathway correlation**: **Cell type abundance scores (Notebook 07)** are **correlated** against **GSVA pathway scores across all samples**, identifying **which cell types drive each biological theme** and **flagging redundant variables** before modelling.
+
+-   **Input selection**: Based on the correlation analysis, the final Cox model inputs are:
+
+    -   **Subtype (ME vs PN)**: The primary biological grouping variable
+    -   **Pathways: One representative GSVA score per biological theme**:
+        -   One **immune pathway** score
+
+        -   One **neural pathway** score
+
+        -   One **proliferation pathway** score
+
+            selected as the **highest-confidence representative of each theme**
+    -   **Key cell type abundance scores**: Specifically **those identified by the correlation analysis** as **independently driving pathway activity** rather than being redundant with each other or with the GSVA scores
+    -   **Age of patient at diagnosis**: The **single most established clinical confounder in GBM survival**, included to **ensure subtype effects are not confounded by patient age.**
+
+    The **outcome variable is overall survival**, defined as **time from diagnosis to death** **(or last follow-up if censored)**
+
+------------------------------------------------------------------------
+
+**Before** the Cox model, a **Kaplan-Meier (KM) survival curve** is plotted.
+
+-   **KM curve** is a **step-function curve** (i.e. a curve that **only moves in discrete downward steps** rather than smoothly) that **drops each time a patient dies** and staying **flat between deaths**. It shows what **fraction of patients in each subtype remain alive at each timepoint.**
+-   **One curve** for **ME** patients, **one** for **PN** patients
+-   To **visually confirm that a survival difference between subtypes exists in this dataset** before attempting to explain it. This serves as a **sanity check**: **if** ME and PN show **no survival difference** at all in the KM plot, the **Cox model has nothing to explain**.
+
+------------------------------------------------------------------------
+
+**After** fitting the Cox model, a **Schoenfeld residuals plot** is produced:
+
+-   A **diagnostic check of the model's core assumption** that the **effect of each predictor (i.e. input variable) on survival risk remains constant over time** (the "proportional hazards" assumption).
+
+-   **If residuals show no systematic trend over time, the assumption holds**. **If** any predictor shows a **trend**, it is corrected via stratification or time-interaction terms before results are interpreted.
+
+## 1. Import Libraries
+
+```{r}
+#| label: import_libraries
+
+
+library(tidyverse)    # data manipulation and visualisation
+library(patchwork)    # combine multiple ggplot2 plots into one canvas
+library(survival)     # survival analysis (Kaplan-Meier, Cox proportional hazards)
+library(survminer)    # publication-ready survival curve visualisation
+library(GSVA)         # single-sample gene set enrichment scoring (per-sample pathway activity)
+library(org.Hs.eg.db) # human gene annotation database (Ensembl symbol mapping)
+library(broom)        # tidying Cox model outputs into clean, readable dataframes
+
+cat("\nLibraries loaded successfully\n")
+cat("tidyverse version:    ", as.character(packageVersion("tidyverse")), "\n")
+cat("patchwork version:    ", as.character(packageVersion("patchwork")), "\n")
+cat("survival version:     ", as.character(packageVersion("survival")), "\n")
+cat("survminer version:    ", as.character(packageVersion("survminer")), "\n")
+cat("GSVA version:         ", as.character(packageVersion("GSVA")), "\n")
+cat("org.Hs.eg.db version: ", as.character(packageVersion("org.Hs.eg.db")), "\n")
+cat("broom version:         ", as.character(packageVersion("broom")), "\n")
+```
+
+## 2. Load Data
+
+### 2.1. Load Filtered Counts Matrix
+
+```{r}
+#| label: load_filtered_counts_matrix
+
+
+filtered_counts_matrix <- readRDS("../01_data/02_processed/04_filtered_counts_matrix.rds")
+cat("Filtered counts matrix loaded:", nrow(filtered_counts_matrix), "genes x", ncol(filtered_counts_matrix), "samples\n")
+```
+
+### 2.2. Load Filtered Tumor Subtype Information
+
+```{r}
+#| label: load_filtered_tumor_subtype_info
+
+
+tumor_subtype_info <- readRDS("../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
+cat("Filtered tumor subtype info loaded:", nrow(tumor_subtype_info), "samples\n")
+cat("\nColumn names:\n")
+print(colnames(tumor_subtype_info))
+```
+
+### 2.3. Load Clinical Metadata
+
+```{r}
+#| label: load_clinical_metadata
+
+
+clinical_metadata <- readRDS("../01_data/01_raw/02_clinical/01_clinical_metadata.rds")
+cat("Clinical metadata loaded:", nrow(clinical_metadata), "patients\n")
+cat("\nColumn names:\n")
+print(colnames(clinical_metadata))
+```
+
+**NOTE:** The **GDC clinical metadata was inspected for additional covariates beyond those already available in the paper-curated `tumor_subtype_info` columns.** **All potentially useful clinical variables** (treatment, recurrence, disease status) were found to be **\>83% missing**, which is a **known limitation of TCGA's retrospectively collected clinical records**. The **clinical metadata is therefore not used as a source of additional covariates in this analysis.** **Survival analysis relies exclusively on the paper-curated columns from Verhaak et al. (2010),** which provide **complete survival and demographic data for** **all 180 samples**.
+
+### 2.4. Load Pathway Enrichment Results
+
+```{r}
+#| label: load_pathway_enrichment_results
+
+
+ora_consensus_up_go     <- read_csv("../04_results/06_pathway_enrichment/01_ora/01_ora_consensus_upregulated_gobp.csv")
+ora_consensus_up_kegg   <- read_csv("../04_results/06_pathway_enrichment/01_ora/02_ora_consensus_upregulated_kegg.csv")
+ora_consensus_down_go   <- read_csv("../04_results/06_pathway_enrichment/01_ora/03_ora_consensus_downregulated_gobp.csv")
+ora_consensus_down_kegg <- read_csv("../04_results/06_pathway_enrichment/01_ora/04_ora_consensus_downregulated_kegg.csv")
+
+gsea_consensus_up_go     <- read_csv("../04_results/06_pathway_enrichment/02_gsea/01_gsea_consensus_upregulated_gobp.csv")
+gsea_consensus_up_kegg   <- read_csv("../04_results/06_pathway_enrichment/02_gsea/02_gsea_consensus_upregulated_kegg.csv")
+gsea_consensus_down_go   <- read_csv("../04_results/06_pathway_enrichment/02_gsea/03_gsea_consensus_downregulated_gobp.csv")
+gsea_consensus_down_kegg <- read_csv("../04_results/06_pathway_enrichment/02_gsea/04_gsea_consensus_downregulated_kegg.csv")
+
+
+
+
+cat("ORA upregulated GO:BP terms:    ", nrow(ora_consensus_up_go), "\n")
+cat("ORA upregulated KEGG terms:     ", nrow(ora_consensus_up_kegg), "\n")
+cat("ORA downregulated GO:BP terms:  ", nrow(ora_consensus_down_go), "\n")
+cat("ORA downregulated KEGG terms:   ", nrow(ora_consensus_down_kegg), "\n\n")
+
+cat("GSEA upregulated GO:BP terms:   ", nrow(gsea_consensus_up_go), "\n")
+cat("GSEA upregulated KEGG terms:    ", nrow(gsea_consensus_up_kegg), "\n")
+cat("GSEA downregulated GO:BP terms: ", nrow(gsea_consensus_down_go), "\n")
+cat("GSEA downregulated KEGG terms:  ", nrow(gsea_consensus_down_kegg), "\n")
+```
+
+### 2.5. Load Deconvolution Results
+
+```{r}
+#| label: load_deconvolution_results
+
+
+deconv_primary_df      <- readRDS("../04_results/07_deconvolution/01_primary_deconvolution_results.rds")
+deconv_confirmatory_df <- readRDS("../04_results/07_deconvolution/02_confirmatory_deconvolution_results.rds")
+
+cat("Primary deconvolution results:     ", dim(deconv_primary_df), "\n")
+cat("Confirmatory deconvolution results:", dim(deconv_confirmatory_df), "\n")
+
+cat("\nPrimary deconvolution cell types:\n")
+print(colnames(deconv_primary_df))
+cat("\n\nConfirmatory deconvolution cell types:\n")
+print(colnames(deconv_confirmatory_df))
+```
+
+## 3. Refine Inputs For Cox Proportional Hazards Model
+
+### 3.1. Identify Dominant Biological Themes Per Subtype From Pathway Enrichment Results
+
+#### 3.1.1. Tabulate ORA Consensus Pathways
+
+```{r}
+#| label: tabulate_ora_consensus_pathways
+
+# GO:BP
+# filter results to significant terms only
+ora_consensus_up_go_sig   <- ora_consensus_up_go   %>% filter(p.adjust < 0.05) %>% arrange(p.adjust)
+ora_consensus_down_go_sig <- ora_consensus_down_go %>% filter(p.adjust < 0.05) %>% arrange(p.adjust)
+
+cat("Significant ORA GO:BP terms: Upregulated in ME:  ", nrow(ora_consensus_up_go_sig), "\n")
+cat("Significant ORA GO:BP terms: Downregulated in ME:", nrow(ora_consensus_down_go_sig), "\n\n")
+
+cat("Top 10 ORA GO:BP terms upregulated in ME:\n")
+ora_consensus_up_go_sig %>%
+  dplyr::select(Description, p.adjust, Count) %>%
+  mutate(p.adjust = formatC(p.adjust, format = "e", digits = 2)) %>%
+  head(10) %>%
+  knitr::kable()
+
+cat("\nTop 10 ORA GO:BP terms downregulated in ME:\n")
+ora_consensus_down_go_sig %>%
+  dplyr::select(Description, p.adjust, Count) %>%
+  mutate(p.adjust = formatC(p.adjust, format = "e", digits = 2)) %>%
+  head(10) %>%
+  knitr::kable()
+
+
+
+
+# KEGG
+# filter results to significant terms only
+ora_consensus_up_kegg_sig   <- ora_consensus_up_kegg   %>% filter(p.adjust < 0.05) %>% arrange(p.adjust)
+ora_consensus_down_kegg_sig <- ora_consensus_down_kegg %>% filter(p.adjust < 0.05) %>% arrange(p.adjust)
+
+cat("\nSignificant ORA KEGG terms — Upregulated in ME:  ", nrow(ora_consensus_up_kegg_sig), "\n")
+cat("Significant ORA KEGG terms — Downregulated in ME:", nrow(ora_consensus_down_kegg_sig), "\n\n")
+
+cat("Top 10 ORA KEGG terms upregulated in ME:\n")
+ora_consensus_up_kegg_sig %>%
+  dplyr::select(Description, p.adjust, Count) %>%
+  mutate(p.adjust = formatC(p.adjust, format = "e", digits = 2)) %>%
+  head(10) %>%
+  knitr::kable()
+
+cat("\nTop 10 ORA KEGG terms downregulated in ME:\n")
+ora_consensus_down_kegg_sig %>%
+  dplyr::select(Description, p.adjust, Count) %>%
+  mutate(p.adjust = formatC(p.adjust, format = "e", digits = 2)) %>%
+  head(10) %>%
+  knitr::kable()
+```
+
+#### 3.1.3. Tabulate GSEA Consensus Pathways
+
+```{r}
+#| label: tabulate_gsea_consensus_pathways
+
+
+# GO:BP
+# filter results to significant terms only
+gsea_consensus_up_go_sig   <- gsea_consensus_up_go   %>% filter(p.adjust < 0.05) %>% arrange(p.adjust)
+gsea_consensus_down_go_sig <- gsea_consensus_down_go %>% filter(p.adjust < 0.05) %>% arrange(p.adjust)
+
+cat("Significant GSEA GO:BP terms — Upregulated in ME:  ", nrow(gsea_consensus_up_go_sig), "\n")
+cat("Significant GSEA GO:BP terms — Downregulated in ME:", nrow(gsea_consensus_down_go_sig), "\n\n")
+
+cat("Top 10 GSEA GO:BP terms upregulated in ME:\n")
+gsea_consensus_up_go_sig %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  mutate(
+    NES      = round(NES, 3),
+    p.adjust = formatC(p.adjust, format = "e", digits = 2)
+  ) %>%
+  head(10) %>%
+  knitr::kable()
+
+cat("\nTop 10 GSEA GO:BP terms downregulated in ME:\n")
+gsea_consensus_down_go_sig %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  mutate(
+    NES      = round(NES, 3),
+    p.adjust = formatC(p.adjust, format = "e", digits = 2)
+  ) %>%
+  head(10) %>%
+  knitr::kable()
+
+
+
+# KEGG
+# filter results to significant terms only
+gsea_consensus_up_kegg_sig   <- gsea_consensus_up_kegg   %>% filter(p.adjust < 0.05) %>% arrange(p.adjust)
+gsea_consensus_down_kegg_sig <- gsea_consensus_down_kegg %>% filter(p.adjust < 0.05) %>% arrange(p.adjust)
+
+cat("\nSignificant GSEA KEGG terms — Upregulated in ME:  ", nrow(gsea_consensus_up_kegg_sig), "\n")
+cat("Significant GSEA KEGG terms — Downregulated in ME:", nrow(gsea_consensus_down_kegg_sig), "\n\n")
+
+cat("Top 10 GSEA KEGG terms upregulated in ME:\n")
+gsea_consensus_up_kegg_sig %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  mutate(
+    NES      = round(NES, 3),
+    p.adjust = formatC(p.adjust, format = "e", digits = 2)
+  ) %>%
+  head(10) %>%
+  knitr::kable()
+
+cat("\nTop 10 GSEA KEGG terms downregulated in ME:\n")
+gsea_consensus_down_kegg_sig %>%
+  dplyr::select(Description, NES, p.adjust) %>%
+  mutate(
+    NES      = round(NES, 3),
+    p.adjust = formatC(p.adjust, format = "e", digits = 2)
+  ) %>%
+  head(10) %>%
+  knitr::kable()
+```
+
+#### 3.1.4. Identify Dominant Biological Themes
+
+```{r}
+#| label: identify_dominant_biological_themes
+
+
+# build one row per direction, summarising ORA and GSEA findings
+pathway_analysis_results_integrated_summary <- data.frame(
+  Direction = c("Up in ME", "Down in ME (Up in PN)"),
+
+  `Top 5 ORA Pathways` = c(
+    paste(ora_consensus_up_go_sig$Description[1:5],   collapse = "; "),
+    paste(ora_consensus_down_go_sig$Description[1:5], collapse = "; ")
+  ),
+
+  `Top 5 GSEA Pathways` = c(
+    paste(gsea_consensus_up_go_sig$Description[1:5],   collapse = "; "),
+    paste(gsea_consensus_down_go_sig$Description[1:5], collapse = "; ")
+  ),
+
+  `Biological Theme` = c(
+    "Mesenchymal / Wound-Healing Program",
+    "Neural Differentiation / Cell Cycle Proliferation Program"
+  ),
+
+  check.names = FALSE
+)
+
+cat("Integrated ORA + GSEA Summary:\n")
+pathway_analysis_results_integrated_summary %>% knitr::kable()
+```
+
+### 3.2. Score Pathway Activity Per Sample Using GSVA
+
+**NOTE**: GSVA stands for **Gene Set Variation Analysis**, which is a tool that **scores the activities of a given set of pathways,** and does it so **per-sample** (in **contrast to pathway enrichment**, which is broader as it is done **per group**).
+
+#### 3.2.1. Select Top Theme Pathways
+
+```{r}
+#| label: select_top_theme_pathways
+
+
+# mesenchymal/wound-healing theme: top 5 GSEA upregulated GO:BP pathways, leading-edge genes
+mes_wound_healing_pathways  <- gsea_consensus_up_go_sig %>%
+  arrange(p.adjust) %>%
+  head(5)
+
+# cell cycle/proliferation theme: top 5 GSEA downregulated GO:BP pathways, leading-edge genes
+proliferation_pathways <- gsea_consensus_down_go_sig %>%
+  arrange(p.adjust) %>%
+  head(5)
+
+# neural identity theme: top 5 ORA downregulated GO:BP pathways, full member genes
+neural_pathways <- ora_consensus_down_go_sig %>%
+  arrange(p.adjust) %>%
+  head(5)
+
+cat("Mesenchymal/Wound-Healing pathways selected:\n")
+print(mes_wound_healing_pathways$Description)
+
+cat("\nCell Cycle/Proliferation pathways selected:\n")
+print(proliferation_pathways$Description)
+
+cat("\nNeural Identity pathways selected:\n")
+print(neural_pathways$Description)
+```
+
+#### 3.2.2. Extract And Refine Gene Lists Of Theme Pathways
+
+```{r}
+#| label: extract_and_refine_gene_lists_of_theme_pathways
+
+
+# helper: split a "/"-separated gene string into a clean character vector
+split_gene_string <- function(gene_string) {
+  strsplit(gene_string, "/")[[1]]
+}
+
+# build named list: one element per pathway, each a vector of gene SYMBOLS
+# all three themes now contain gene symbols after simplify() processing in Notebook 06 (pathway enrichment)
+gene_sets_raw <- c(
+  setNames(
+    lapply(mes_wound_healing_pathways$core_enrichment, split_gene_string),
+    paste0("MesWoundHealing__", make.names(mes_wound_healing_pathways$Description))
+  ),
+  setNames(
+    lapply(proliferation_pathways$core_enrichment, split_gene_string),
+    paste0("Proliferation__", make.names(proliferation_pathways$Description))
+  ),
+  setNames(
+    lapply(neural_pathways$geneID, split_gene_string),
+    paste0("Neural__", make.names(neural_pathways$Description))
+  )
+)
+
+
+# strip Ensembl version numbers from filtered_counts_matrix rownames for matching
+matrix_ids_stripped <- gsub("\\..*", "", rownames(filtered_counts_matrix))
+
+# map all gene symbols to unversioned Ensembl IDs
+# (all three themes contain gene symbols after simplify() processing)
+all_symbols <- unique(unlist(gene_sets_raw))
+symbol_to_ensembl <- clusterProfiler::bitr(
+  all_symbols,
+  fromType = "SYMBOL",
+  toType   = "ENSEMBL",
+  OrgDb    = org.Hs.eg.db
+)
+
+cat("Symbol -> Ensembl mapping rows returned:", nrow(symbol_to_ensembl), "\n")
+cat("Unique symbols queried:", length(all_symbols), "\n")
+
+
+
+
+# build final gene sets list using symbol -> Ensembl mapping for all themes
+gene_sets_ensembl <- lapply(gene_sets_raw, function(symbols) {
+  ensembl_ids_unversioned <- unique(symbol_to_ensembl$ENSEMBL[symbol_to_ensembl$SYMBOL %in% symbols])
+  rownames(filtered_counts_matrix)[matrix_ids_stripped %in% ensembl_ids_unversioned]
+})
+
+cat("\nTotal gene sets built:", length(gene_sets_ensembl), "\n")
+cat("\nGene set sizes after Ensembl conversion and filtering to matrix genes:\n")
+print(sapply(gene_sets_ensembl, length))
+```
+
+#### 3.2.3. Compute log~2~-CPM Normalized Matrix
+
+```{r}
+#| label: compute_log2_cpm_normalized_matrix
+
+
+# GSVA requires normalized expression data, not raw counts
+cpm_matrix <- sweep(
+  filtered_counts_matrix,                 # take filtered raw counts matrix
+  2,                                      # go thru cols (instead of rows)
+  colSums(filtered_counts_matrix) / 1e6,  # scaling factor
+  FUN = "/"                               # divide all values by their column-specific scaling factor
+)
+
+# log2 transform, with a small pseudo-count to avoid log(0) for zero-count genes
+log_cpm_matrix <- log2(cpm_matrix + 1)
+
+cat("Log2-CPM matrix dimensions:", dim(log_cpm_matrix), "\n")
+cat("\nValue range:\n")
+print(summary(as.vector(log_cpm_matrix)))
+```
+
+#### 3.2.4. Run GSVA To Compute Per-Sample Pathway Activity Scores
+
+```{r}
+#| label: run_gsva_to_compute_per_sample_pathway_activity_scores
+
+
+# build GSVA parameter object and run
+gsva_params <- GSVA::gsvaParam(
+  exprData  = log_cpm_matrix,
+  geneSets  = gene_sets_ensembl,
+  minSize   = 5,                  # discard gene sets with too few matched genes for a stable score
+  maxSize   = 500
+)
+
+gsva_scores <- GSVA::gsva(gsva_params)
+
+cat("GSVA scores matrix dimensions:", dim(gsva_scores), "\n")
+cat("\nPathway names (rows):\n")
+print(rownames(gsva_scores))
+cat("\nScore range:\n")
+print(summary(as.vector(gsva_scores)))
+```
+
+### 3.3. Correlate Pathway Activity With Cell Type Abundance Scores
+
+#### 3.3.1. Integrate GSVA Scores With Deconvolution Cell Type Abundance Scores
+
+```{r}
+#| label: integrate_gsva_scores_with_deconvolution_cell_type_abundance_scores
+
+
+# transpose GSVA scores into samples x pathways
+gsva_scores_df <- as.data.frame(t(gsva_scores)) %>%
+  rownames_to_column(var = "sample_id")
+
+# join with primary deconvolution results on sample_id
+gsva_pathway_integration_df <- deconv_primary_df %>%
+  left_join(gsva_scores_df, by = "sample_id")
+
+cat("Integrated dataframe dimensions:", dim(gsva_pathway_integration_df), "\n")
+cat("\nColumn names:\n")
+print(colnames(gsva_pathway_integration_df))
+
+cat("\nMissing GSVA values after join (should be 0):\n")
+print(
+  sum(
+    is.na(
+      gsva_pathway_integration_df$MesWoundHealing__cytokine.mediated.signaling.pathway
+    )
+  )
+)
+```
+
+#### 3.3.2. Correlate Pathway Activity With Cell Type Abundance Scores
+
+```{r}
+#| label: correlate_pathway_activity_with_cell_type_abundance_scores
+
+
+cell_type_cols <- c(
+  "AC", "MES", "NPC", "OPC", "Astrocyte", "Oligodendrocyte",
+  "Neuron", "Radial glial", "Monocytes", "TAM", "Microglia", "DC",
+  "Mast cells", "T cells", "NK cells", "B cells", "Plasma B", "Mural cell",
+  "Endothelial"
+)
+
+pathway_cols <- names(gene_sets_ensembl)
+
+# helper: compute Spearman correlations for one subtype's samples only
+compute_subtype_correlations <- function(subtype_label) {
+  subtype_samples <- gsva_pathway_integration_df %>% filter(subtype == subtype_label)
+  n <- nrow(subtype_samples)
+
+  expand.grid(
+      Pathway  = pathway_cols,
+      CellType = cell_type_cols,
+      stringsAsFactors = FALSE
+    ) %>%
+    rowwise() %>%
+    mutate(
+      # compute the correlations
+      rho = cor(
+        subtype_samples[[Pathway]],
+        subtype_samples[[CellType]],
+        method = "spearman"
+      ),
+      
+      # convert rho to a t-statistic for p-value calculation
+      t_stat = rho * sqrt(
+        (n - 2) / (1 - rho^2)
+      ),
+      
+      # calculate p-value
+      p_value = 2 * pt(
+        abs(t_stat),
+        df = n - 2,
+        lower.tail = FALSE
+      )
+    ) %>%
+    
+    # remove rowwise grouping so subsequent operations apply to the full dataframe
+    ungroup() %>%
+    
+    dplyr::select(-t_stat) %>%
+    mutate(
+      # apply Benjamini-Hochberg correction across all 285 tests to control false discovery rate
+      p_adjust = p.adjust(p_value, method = "BH"),
+      
+      # add the subtype label
+      Subtype  = subtype_label
+    )
+}
+
+
+# compute correlations separately for ME and PN, then combine
+correlation_by_subtype <- bind_rows(
+    compute_subtype_correlations("ME"),
+    compute_subtype_correlations("PN")
+  ) %>%
+  mutate(
+    Subtype = factor(
+      Subtype,
+      levels = c("ME", "PN")
+    )
+  )
+
+cat(
+  "Total correlation pairs computed:", nrow(correlation_by_subtype),
+  paste0(
+    "(", length(pathway_cols), " pathways x ", length(cell_type_cols), " cell types x 2 subtypes)\n"
+  )
+)
+```
+
+```{r}
+#| label: diagnose_actual_selected_pathways
+
+
+cat("Actual MesWoundHealing pathway columns present:\n")
+print(grep("^MesWoundHealing__", colnames(gsva_pathway_integration_df), value = TRUE))
+
+cat("\nActual Proliferation pathway columns present:\n")
+print(grep("^Proliferation__", colnames(gsva_pathway_integration_df), value = TRUE))
+
+cat("\nActual Neural pathway columns present:\n")
+print(grep("^Neural__", colnames(gsva_pathway_integration_df), value = TRUE))
+```
+
+#### 3.3.3. Plot Heatmap Of Pathway-Cell Type Correlations
+
+```{r}
+#| label: plot_heatmap_of_pathway_celltype_correlations
+#| fig-width: 20
+#| fig-height: 8
+
+
+# clean up pathway labels for display: strip theme prefix and replace dots with spaces
+heatmap_data <- correlation_by_subtype %>%
+  mutate(
+    Theme = case_when(
+      str_starts(Pathway, "MesWoundHealing__") ~ "Mesenchymal /\nWound-Healing",
+      str_starts(Pathway, "Proliferation__")   ~ "Proliferation",
+      str_starts(Pathway, "Neural__")          ~ "Neural Identity"
+    ),
+    Pathway_Label = Pathway %>%
+      str_remove("^(MesWoundHealing|Proliferation|Neural)__") %>%
+      str_replace_all("\\.", " ")
+  )
+
+
+
+# plot side-by-side heatmaps, one per subtype
+pathway_celltype_correlation_heatmap <- ggplot(
+  heatmap_data,
+    aes(
+      x    = CellType,
+      y    = Pathway_Label,
+      fill = rho
+    )
+  ) +
+  
+  geom_tile(
+    color     = "white",
+    linewidth = 0.4
+  ) +
+  
+  scale_fill_gradient2(
+    low      = "#2166AC",
+    mid      = "white",
+    high     = "#B2182B",
+    midpoint = 0,
+    limits   = c(-1, 1),
+    name     = "Spearman\nρ"
+  ) +
+  
+  facet_grid(
+    rows   = vars(Theme),
+    cols   = vars(Subtype),
+    scales = "free_y",
+    space  = "free_y"
+  ) +
+  
+  labs(
+    title    = "Pathway Activity (GSVA) vs Cell Type Abundance: Spearman Correlations",
+    subtitle = "Computed separately within PN (n=55) and ME (n=125) samples",
+    x        = "Cell Type (Deconvolution)",
+    y        = "Pathway (GSVA Score)"
+  ) +
+  
+  theme_minimal() +
+  theme(
+    axis.text.x     = element_text(angle = 45, hjust = 1, size = 9),
+    axis.text.y     = element_text(size = 9),
+    
+    strip.text.y    = element_text(angle = 0, face = "bold", size = 10),
+    strip.text.x    = element_text(face = "bold", size = 12),
+    
+    panel.grid      = element_blank(),
+    panel.spacing.x = unit(1.5, "cm"),
+    
+    plot.title      = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle   = element_text(hjust = 0.5, color = "grey40"),
+    
+    legend.position = "right"
+  )
+
+pathway_celltype_correlation_heatmap
+```
+
+The heatmap reveals that the **relationship between cell type abundance and pathway activity is consistent across both subtypes**. The **correlation patterns** are **strikingly similar in ME and PN samples**, indicating that these biological associations are a **general property of GBM tumors** rather than subtype-specific phenomena.
+
+**Key findings** across **both subtypes**:
+
+-   **Mesenchymal/wound-healing pathways**:
+
+    -   **Correlate strongly** and **positively** with **TAM**, **Microglia**, **Monocytes**, and **DC (i.e. Dendritic Cells).**
+
+    -   This pinpoints **myeloid lineage cells** specifically as the **drivers of the immune/inflammatory signal, rather than lymphocytes** (T/B/NK cells show weaker correlation.
+
+-   **Neural identity pathways**:
+
+    -   **Correlate positively** with **NPC (i.e. Neural Progenitor Cell)**, **Neuron**, and **Oligodendrocyte.**
+
+    -   This confirmS that **neural cell types** track the neural pathway signal at the individual sample level.
+
+-   **Cell cycle/proliferation pathways**:
+
+    -   Show broadly **negative correlations with most cell types.**
+
+    -   This is consistent with **proliferation** being a tumor-cell-intrinsic signal that gets **diluted as infiltrating immune/stromal cell abundance increases**.
+
+    -   **NPC** is the notable **exception**, showing **positive correlation with proliferation pathways** in both subtypes, identifying **NPC-like cells as the proliferating population**.
+
+The **correlations being similar** within each subtype **simply confirms these relationships are real** **and consistent**, **not artifacts** of group-level subtype differences.
+
+### 3.4. Plot Kaplan-Meier Patient Survival Curves
+
+#### 3.4.1. Prepare Patient Survival Data
+
+```{r}
+#| label: prepare_patient_survival_data
+
+
+# extract survival-relevant columns from tumor_subtype_info
+# using paper-curated columns (Verhaak/TCGA paper) which are more complete
+# than the raw GDC clinical metadata for this specific dataset
+
+patient_survival_data <- tumor_subtype_info %>%
+  as.data.frame() %>%
+  dplyr::select(
+    sample_id             = barcode,
+    bcr_patient_barcode,
+    subtype               = paper_Transcriptome.Subtype,
+    survival_months       = paper_Survival..months.,
+    vital_status          = paper_Vital.status..1.dead.,
+    age_at_diagnosis      = paper_Age..years.at.diagnosis.,
+    karnofsky_score       = paper_Karnofsky.Performance.Score
+  ) %>%
+  
+  mutate(
+    # event = 1 (dead), event = 0 (censored/alive)
+    # paper_Vital.status..1.dead. is already coded as 1/0
+    event   = as.numeric(vital_status),
+    subtype = factor(subtype, levels = c("PN", "ME"))
+  ) %>%
+  
+  filter(!is.na(survival_months), !is.na(event))
+
+
+
+cat("Samples with complete patient survival data:", nrow(patient_survival_data), "\n")
+cat("\nEvent distribution (0 = censored, 1 = dead):\n")
+print(table(patient_survival_data$event, useNA = "always"))
+
+cat("\nSubtype distribution:\n")
+print(table(patient_survival_data$subtype, useNA = "always"))
+cat("\nMissingness check:\n")
+cat("Missing survival_months:  ", sum(is.na(patient_survival_data$survival_months)), "\n")
+cat("Missing event:            ", sum(is.na(patient_survival_data$event)), "\n")
+cat("Missing age_at_diagnosis: ", sum(is.na(patient_survival_data$age_at_diagnosis)), "\n")
+```
+
+#### 3.4.2. Plot Kaplan-Meier Patient Survival Curves
+
+```{r}
+#| label: plot_kaplan_meier_patient_survival_curves
+#| fig-width: 8
+#| fig-height: 6
+
+
+# build survival object
+surv_object <- Surv(
+  time  = patient_survival_data$survival_months,
+  event = patient_survival_data$event
+)
+
+# fit KM curves separately for ME and PN
+km_fit <- survfit(surv_object ~ subtype, data = patient_survival_data)
+
+# plot
+km_plot <- ggsurvplot(
+  km_fit,
+  data          = patient_survival_data,
+  
+  pval          = TRUE,  # show log-rank test p-value
+  pval.method   = TRUE,  # show the test name alongside p-value
+  conf.int      = TRUE,  # show 95% confidence intervals
+  risk.table    = TRUE,  # show number at risk below plot
+  
+  legend.labs   = c("PN", "ME"),
+  legend.title  = "Subtype",
+  
+  palette       = c("#4DAF4A", "#E41A1C"),  # green for PN, red for ME
+  censor.shape = "O",                       # marker for censored patients (i.e. those still alive at last follow-up, not counted in calculations from that point onwards)
+  
+  xlab          = "Time (Months)",
+  ylab          = "Survival Probability",
+  
+  title         = "Kaplan-Meier Survival Curves: PN vs ME GBM",
+  ggtheme       = theme_minimal() + theme(plot.title = element_text(hjust = 0.5)),
+  fontsize      = 4
+)
+
+km_plot
+```
+
+The Kaplan-Meier survival curves show a **statistically significant survival difference** between PN and ME GBM subtypes **(log-rank p = 0.033)**:
+
+-   **Proneural (PN) patients survive longer on average**, with the **curve dropping more slowly** and **extending further right**. **Some** PN patients surviving **beyond 75 months**.
+
+-   **Mesenchymal (ME) patients** show **faster early decline**, with the **curve dropping more steeply in the first 25 months** where most GBM deaths occur.
+
+The **shaded bands around each curve are 95% confidence intervals**, which means the **true survival probability at any given timepoint lies within this band with 95% certainty**. The **wider the band, the more uncertain the estimate**, which is why the **bands widen dramatically toward the right as fewer patients remain**.
+
+The **"O" marks on the curves** represent **censored patients**, i.e. patients who were **still alive at their last recorded follow-up** and therefore **removed from the calculations from that point onwards**, since we **do not know their true survival time**, only that they survived at least that long.
+
+The **Number at Risk table** shows **how many patients from each subtype** are **still being actively followed at each timepoint**:
+
+-   At **month 0**: **all 55 PN** and all **125 ME** patients
+
+-   By **month 25**: **only 7 PN** and **11 ME** remain being followed
+
+-   By **month 50**: **2 PN** and **0 ME**
+
+**This rapid drop** in numbers at risk **is why the confidence intervals widen** so dramatically **toward the right**. With **very few patients remaining**, **each individual death causes a large step down** in the curve, **making the** **estimates increasingly uncertain**. Survival **estimates beyond month 25** should therefore be **interpreted with caution.**
+
+**NOTE**: The **numbers at risk do NOT mean only those patients that are still alive at a particular timepoint; it also reflects censored patients**.
+
+-   For e.g. **in month 25**, it means **only 7 PN patients are still actively contributing survival information at that point**.
+
+-   **The rest either died** (accounted for as **steps in the curve**) or **were censored before month 25** (**removed from further calculations** without a death event).
+
+The **log-rank `p = 0.033` confirms this difference is statistically real** and not due to chance, validating that **subtype is a meaningful predictor of survival**. This will **now be tested by the Cox model** in the **context of all biological variables simultaneously**, i.e:
+
+-   **Subtype (ME vs PN)**: The primary biological grouping variable
+-   **Pathways: One representative GSVA score per biological theme**:
+    -   One **immune pathway** score
+
+    -   One **neural pathway** score
+
+    -   One **proliferation pathway** score
+
+        selected as the **highest-confidence representative of each theme**
+-   **Key cell type abundance scores**: Specifically **those identified by the correlation analysis** as **independently driving pathway activity** rather than being redundant with each other or with the GSVA scores
+-   **Age of patient at diagnosis**: The **single most established clinical confounder in GBM survival**, included to **ensure subtype effects are not confounded by patient age.**
+
+The **outcome variable is overall survival**, defined as **time from diagnosis to death** **(or last follow-up if censored)**
+
+## 4. Fit Cox Proportional Hazards Model
+
+### 4.1. Select Cox Model Inputs
+
+```{r}
+#| label: select_cox_model_inputs
+
+# pathway-pathway score correlations
+# compute pairwise Spearman correlations between all GSVA pathway scores
+# using the full 180-sample dataset (not the subtype-split dataset, since overall redundancy is required)
+gsva_score_cols <- pathway_cols
+
+gsva_cor_matrix <- gsva_pathway_integration_df %>%
+  
+  dplyr::select(
+    all_of(gsva_score_cols)
+  ) %>%
+  
+  cor(method = "spearman") %>%
+  abs()
+
+
+
+# cell type-cell type score correlations
+# compute pairwise Spearman correlations between all cell type abundance scores
+celltype_cor_matrix <- gsva_pathway_integration_df %>%
+  
+  dplyr::select(
+    all_of(cell_type_cols)
+  ) %>%
+  
+  cor(method = "spearman") %>%
+  abs()
+
+
+# helper function
+# greedy forward selection: start with highest mean_abs_rho variable,
+# add next variable only if abs(rho) < 0.7 with ALL already-selected variables
+greedy_select <- function(
+    importance_df, cor_matrix, max_cor_threshold, min_importance
+  ) {
+      # filter to variables meeting minimum informativeness threshold
+      candidates <- importance_df %>%
+        filter(
+          mean_abs_rho >= min_importance
+        ) %>%
+        pull(variable)
+      
+      selected <- c()
+    
+      for (candidate in candidates) {
+        if (length(selected) == 0) {
+          
+          # always select the most important variable first
+          selected <- c(selected, candidate)
+          
+        } else {
+          
+          # add candidate only if sufficiently independent from all already-selected variables
+          max_cor <- max(
+            cor_matrix[candidate, selected]
+          )
+          
+          if (max_cor < max_cor_threshold) {
+            selected <- c(selected, candidate)
+          }
+        }
+      }
+      return(selected)
+  }
+
+
+
+# pathway importance: mean absolute rho across all cell types and both subtypes
+pathway_importance <- correlation_by_subtype %>%
+  group_by(Pathway) %>%
+  
+  summarise(
+    mean_abs_rho = mean(abs(rho))
+  ) %>%
+  
+  arrange(
+    desc(mean_abs_rho)
+  ) %>%
+  
+  dplyr::rename(variable = Pathway)
+
+
+# cell type importance: mean absolute rho across all pathways and both subtypes
+celltype_importance <- correlation_by_subtype %>%
+  group_by(CellType) %>%
+  
+  summarise(
+    mean_abs_rho = mean(abs(rho))
+  ) %>%
+  
+  arrange(
+    desc(mean_abs_rho)
+  ) %>%
+  
+  dplyr::rename(variable = CellType)
+
+
+
+# apply greedy selection
+selected_pathways  <- greedy_select(pathway_importance,  gsva_cor_matrix,
+                                    max_cor_threshold = 0.8, min_importance = 0.15)
+selected_celltypes <- greedy_select(celltype_importance, celltype_cor_matrix,
+                                    max_cor_threshold = 0.7, min_importance = 0.3)
+
+cat("Selected GSVA pathways (non-redundant, greedy forward selection):\n")
+print(selected_pathways)
+
+cat("\nSelected cell types (non-redundant, greedy forward selection):\n")
+print(selected_celltypes)
+
+
+cat("\nFinal Cox model inputs:\n")
+cat("- Subtype (ME vs PN)\n")
+cat("- Age at diagnosis\n")
+
+for (p in selected_pathways) {
+  cat(
+    paste0("- GSVA: ", p, "\n")
+  )
+}
+for (c in selected_celltypes) {
+  cat(
+    paste0("- Cell type: ", c, "\n")
+  )
+}
+
+cat(
+  "\nTotal predictors:", 2 + length(selected_pathways) + length(selected_celltypes), "\n"
+)
+```
+
+### 4.2. Fit Cox Proportional Hazards Model
+
+```{r}
+#| label: fit_cox_proportional_hazards_model
+
+
+# join selected Cox model inputs with survival data
+cox_input_df <- patient_survival_data %>%
+  left_join(
+    gsva_pathway_integration_df %>%
+      
+    dplyr::select(
+      sample_id,
+      all_of(selected_pathways),
+      all_of(selected_celltypes)
+    ),
+    
+    by = "sample_id"
+  ) %>%
+  
+  mutate(
+    # standardize cell type abundance scores to mean=0, sd=1
+    # MCPcounter abundance scores are on an arbitrary scale where one unit
+    # is not meaningful. Standardizing makes their hazard ratios interpretable
+    # as the effect of one standard deviation increase in cell type abundance
+    TAM = scale(TAM)[, 1],
+    NPC = scale(NPC)[, 1]
+  )
+
+
+
+cat("Cox model input dimensions:", dim(cox_input_df), "\n")
+
+cat("Missing values per predictor:\n")
+cox_input_df %>%
+dplyr::select(
+  subtype, age_at_diagnosis,
+  all_of(selected_pathways),
+  all_of(selected_celltypes)
+) %>%
+
+summarise(
+  across(
+    everything(), ~ sum(is.na(.))
+  )
+) %>%
+knitr::kable()
+
+
+# build formula dynamically from selected variables
+cox_formula <- as.formula(
+  paste(
+    "Surv(survival_months, event) ~",
+    paste(
+      c(
+        "subtype",
+        "age_at_diagnosis",
+        paste0("`", selected_pathways, "`"),
+        paste0("`", selected_celltypes, "`")
+      ),
+      collapse = " + "
+    )
+  )
+)
+
+cat("\nCox model formula:\n")
+print(cox_formula)
+
+# fit Cox proportional hazards model
+cox_model <- coxph(cox_formula, data = cox_input_df)
+
+# display results
+cat("\nCox model summary:\n")
+summary(cox_model)
+```
+
+### 4.3. Visualize Cox Model Results In Forest Plot
+
+```{r}
+#| label: visualize_cox_model_results_in_forest_plot
+#| fig-width: 10
+#| fig-height: 6
+
+
+# build readable name mapping dynamically based on actual selected variables
+readable_term_names <- c(
+  "subtypeME"        = "Subtype (ME vs PN)",
+  "age_at_diagnosis" = "Age at Diagnosis",
+  setNames(
+    paste0(
+      "GSVA: ",
+      str_remove(
+        selected_pathways, "^(MesWoundHealing|Proliferation|Neural)__"
+      ) %>%
+      str_replace_all("\\.", " ") %>%
+      str_to_title()
+    ),
+    selected_pathways
+  ),
+  setNames(
+    paste0("Cell Type: ", selected_celltypes, " (per SD)"),
+    selected_celltypes
+  )
+)
+
+# extract clean hazard ratio table for forest plot
+cox_results <- broom::tidy(
+    cox_model,            # cox model
+    exponentiate = TRUE,  # hazard ratios (explained below) are in log form, so exponentiate them to normal scale for interpretation
+    conf.int     = TRUE   # calculate confidence interval (default is 95% CI)
+  ) %>%
+  
+  # rename variables to human readable forms
+  mutate(term = readable_term_names[term]) %>%
+  
+  arrange(p.value) %>%
+  
+  mutate(
+    term         = factor(term, levels = rev(term)),  # rev() so smallest p.value appears at top
+    significance = case_when(
+      p.value < 0.001 ~ "p < 0.001",
+      p.value < 0.01  ~ "p < 0.01",
+      p.value < 0.05  ~ "p < 0.05",
+      p.value < 0.1   ~ "p < 0.1",
+      TRUE            ~ "p ≥ 0.1"
+    )
+  )
+
+
+
+
+
+
+# forest plot
+cox_forest_plot <- ggplot(
+    cox_results,
+    aes(
+      x = estimate,
+      y = term,
+      color = significance
+    )
+  ) +
+  
+  
+  geom_point(size = 3) +
+  
+  geom_errorbarh(
+    aes(
+      xmin = conf.low,
+      xmax = conf.high
+    ),
+    height = 0.2
+  ) +
+  
+  geom_vline(
+    xintercept = 1,
+    linetype   = "dashed",
+    color      = "grey40"
+  ) +
+  
+  
+  scale_color_manual(
+    values = c(
+      "p < 0.001" = "#B2182B",
+      "p < 0.01"  = "#D6604D",
+      "p < 0.05"  = "#F4A582",
+      "p < 0.1"   = "#FDDBC7",
+      "p ≥ 0.1"   = "grey60"
+    ),
+    name = "Significance"
+  ) +
+  
+  scale_x_log10() +              # log scale so HR=1 is centered, symmetric display
+  
+  labs(
+    title    = "Cox Proportional Hazards Model: Forest Plot",
+    subtitle = "Hazard Ratios with 95% Confidence Intervals (n=180, events=127)",
+    x        = "Hazard Ratio (log scale)",
+    y        = NULL,
+    
+    caption = paste0(
+      "Model Fit Statistics\n",
+      
+      
+      # Concordance; asks:
+        # "If two patients are randomly picked from the dataset
+        # and the model is used to predict which one would die sooner,
+        # how often would the model be correct?"
+      "Concordance: ",
+      round(
+        summary(cox_model)$concordance[1], 3
+      ),
+      
+      # standard error of concordance
+      " (SE=",
+      round(
+        summary(cox_model)$concordance[2], 3
+      ),
+      ")     ",
+      
+      
+      
+      
+      # Likelihood Ratio Test; asks:
+        # "If the model is given NO information about these patients at all,
+        # i.e. no age, no subtype, no pathways, nothing,
+        # and predicted survival purely by chance,
+        # how much worse would it do compared to using all 7 predictors?"
+      "LR Test: p=",
+      formatC(
+        summary(cox_model)$logtest[3],  format = "e", digits = 2
+      ),
+      "     ",
+      
+      
+      
+      
+      # Wald test; asks:
+        # "Looking at each predictor's estimated effect
+        # and how uncertain the model is about that estimate,
+        # is the model confident enough that
+        # at least some of these effects are real and not just noise?"
+      "Wald Test: p=",
+      formatC(
+        summary(cox_model)$waldtest[3], format = "e", digits = 2
+      ),
+      "     ",
+      
+      
+      
+      
+      # Score test; asks:
+        # "Without even fully fitting the model,
+        # just standing at the starting point where all predictors have zero effect,
+        # does the data immediately push back and say 'no, these predictors clearly matter'?"
+      "Score Test: p=",
+      formatC(
+        summary(cox_model)$sctest[3],  format = "e", digits = 2
+      )
+    )
+  ) +
+  theme_minimal() +
+  theme(
+    plot.title    = element_text(face = "bold", hjust = 0.5),
+    plot.subtitle = element_text(hjust = 0.5, color = "grey40"),
+    plot.caption = element_text(
+      hjust = 0.5,
+      margin = margin(t = 15),
+      face = "bold",
+      size = 8,
+      color = "grey20"
+    ),
+    legend.position = "right"
+  )
+
+cox_forest_plot
+```
+
+The Cox proportional hazards model was fit with **7 predictors across 180 samples and 127 death events**. **Variable selection** followed a **hybrid approach**:
+
+-   **Literature-informed inclusion**: [***Subtype (ME vs PN)***]{.underline} **as the primary biological variable** and [***age at diagnosis***]{.underline} as a **standard clinical covariate** included to control for its **known confounding effect on survival in GBM.**
+
+-   **Data-driven importance ranking**: Remaining [***candidate pathways (3)***]{.underline} and [***cell types (2)***]{.underline} were **ranked by their mean absolute correlation with the opposing variable type** **(pathway-celltype correlation from Section 3.3)**, selecting the most **biologically grounded representative of each theme.**
+
+-   **Greedy redundancy removal**: Variables were added **sequentially**, including a candidate **only if its absolute pairwise correlation with all already-selected variables of the same type was BELOW the specified threshold**, ensuring no two predictors measure the same underlying signal.
+
+**Cell type abundance scores (of TAM, NPC) were standardized to mean=0, SD=1 prior to model fitting**, since **`MCPcounter` abundance scores** are on an **arbitrary numeric scale** where a **"one unit increase" is not meaningful**. **Standardization** makes their **hazard ratios interpretable as the effect of one standard deviation increase in cell type abundance.**
+
+The **forest plot above** shows the **hazard ratio (HR) and 95% confidence interval for each predictor**, on a **log scale**. A **point to the right of the dashed line (HR=1)** indicates **higher risk**; a **point to the left** indicates **lower risk**. **Color** reflects **statistical significance**.
+
+**NOTE: Hazard Ratio (HR)** **=** **relative change in hazard rate per unit increase in variable**
+
+**Overall model significance**: all **three tests agree strongly** that the **model as a whole significantly predicts survival better than no predictors** at all:
+
+-   **Likelihood Ratio Test** `p = 5e-06`
+
+-   **Wald Test** `p = 2e-05`
+
+-   **Score Test** `p = 1e-05`
+
+The **concordance of 0.67** indicates the **model correctly ranks which of two randomly chosen patients will die sooner 67% of the time**. This is **meaningfully better than random chance (i.e. 0.5)**, though **not perfect**, reflecting the **inherent biological variability in individual GBM survival**.
+
+**Individual predictor results** (see forest plot):
+
+-   **Age at Diagnosis (HR=1.046, p=`7.59e-08`)**: The single **strongest, most significant predictor**. **Each additional year of age at diagnosis increases the hazard of death by 4.6%**, controlling for all other variables. This is **entirely consistent with age being the most established prognostic factor in GBM**, i.e. **older patients consistently fare worse regardless of subtype.**
+
+-   **GSVA: Positive Regulation Of Cytokine Production** **(HR=3.768, `p=0.0457`)** is **the only pathway score** reaching **conventional statistical significance**. Its **95% CI (1.026 - 13.845) excludes 1**, indicating **tumors with elevated cytokine production signaling** face **significantly worse survival**, independent of subtype, age, and cell composition. This provides direct quantitative support for the **mesenchymal/wound-healing program** being **clinically detrimental**, not just transcriptionally distinct.
+
+-   **All other predictors** (GSVA: Nuclear Division, GSVA: Synapse Assembly, Cell Type: TAM, Cell Type: NPC) show **no statistically significant independent survival association**.
+
+-   **Subtype ME vs PN (HR=0.981, p=`0.958`)**: The **most striking finding**: **subtype alone shows no significant independent effect on survival** when biological variables are controlled for. The **KM plot (Section 3.4) showed a significant ME vs PN survival difference (`p=0.033`)**, but **that difference disappears in the multivariate model**. This **suggests subtype's effect on survival is mediated through the biological variables** in the model, particularly **age and immune pathway activity**, rather than being a direct, independent effect of the subtype label itself. In other words, **it is not "being ME" that kills patients faster**, but **rather the biological characteristics that ME tumors tend to have** (older patients, higher immune/inflammatory activity) that **drive the** **worse prognosis**.
+
+### 4.4. Check Proportional Hazards Assumption With Schoenfeld Residuals Plot
+
+```{r}
+#| label: check_proportional_hazards_assumption_with_schoenfeld_residuals_plot
+#| fig-width: 15
+#| fig-height: 8
+
+
+# build readable name mapping dynamically based on actual selected variables
+readable_names <- c(
+  "subtype"          = "Subtype (ME vs PN)",
+  "age_at_diagnosis" = "Age at Diagnosis",
+  setNames(
+    paste0(
+      "GSVA: ",
+      str_remove(
+        selected_pathways,
+        "^(MesWoundHealing|Proliferation|Neural)__"
+      ) %>%
+      str_replace_all("\\.", " ") %>%
+      str_to_title()
+    ),
+    selected_pathways
+  ),
+  setNames(
+    paste0("Cell Type: ", selected_celltypes, " (per SD)"),
+    selected_celltypes
+  )
+)
+
+# test proportional hazards assumption using Schoenfeld residuals
+# null hypothesis: hazard ratio for each predictor is constant over time
+schoenfeld_residuals_ph_test <- cox.zph(cox_model)
+
+
+
+# rename terms in schoenfeld_residuals_ph_test object for readable plot labels
+# test result table row names (summary stats of residuals results, one per predictor + GLOBAL)
+rownames(schoenfeld_residuals_ph_test$table) <- c(
+  readable_names[
+    rownames(
+      schoenfeld_residuals_ph_test$table
+    )[
+      -nrow(schoenfeld_residuals_ph_test$table)
+    ]
+  ],
+  "GLOBAL"
+)
+
+
+# scaled Schoenfeld residuals matrix column names (residuals themselves)
+colnames(schoenfeld_residuals_ph_test$y)   <- readable_names[
+  colnames(
+    schoenfeld_residuals_ph_test$y
+  )
+]
+
+
+# variance matrix (used internally by cox_zph()) column names
+colnames(schoenfeld_residuals_ph_test$var) <- readable_names[
+  colnames(
+    schoenfeld_residuals_ph_test$var
+  )
+]
+
+
+# variance matrix (used internally by cox_zph()) row names
+rownames(schoenfeld_residuals_ph_test$var) <- readable_names[
+  rownames(
+    schoenfeld_residuals_ph_test$var
+  )
+]
+
+
+cat("Schoenfeld Residuals Test (Proportional Hazards Assumption):\n\n")
+print(schoenfeld_residuals_ph_test)
+
+# plot Schoenfeld residuals for each predictor
+# a flat, random scatter around zero indicates the assumption holds
+# a systematic trend over time indicates a violation
+par(mfrow = c(2, 4))
+plot(schoenfeld_residuals_ph_test)
+mtext(
+  "Schoenfeld Residuals: Proportional Hazards Assumption Check",
+  side  = 3,
+  line  = -1.5,
+  outer = TRUE,
+  font  = 2,
+  cex   = 1.2
+)
+```
+
+The **Schoenfeld residuals test evaluates whether the core assumption of the Cox model holds**, the **assumption being that each predictor's effect on survival risk remains constant over time rather than strengthening or weakening as patients are followed longer**.
+
+For **each predictor**, **the test asks: "do the residuals show any systematic trend over time?"** A **non-significant p-value (p \> 0.05) means no detectable trend**, meaning that **the assumption holds for that predictor**.
+
+**Results**: **all predictors pass** the assumption check at the conventional threshold, with **one borderline exception**:
+
+| Predictor | p-value | Interpretation |
+|----|----|----|
+| Subtype | 0.151 | Assumption holds |
+| Age at Diagnosis | 0.134 | Assumption holds |
+| GSVA: Positive Regulation of Cytokine Production | 0.205 | Assumption holds |
+| GSVA: Nuclear Division | 0.107 | Assumption holds |
+| GSVA: Synapse Assembly | 0.049 | Borderline violation |
+| Cell Type: TAM | 0.159 | Assumption holds |
+| Cell Type: NPC | 0.103 | Assumption holds |
+| **GLOBAL** | **0.426** | **Assumption holds globally** |
+
+The **global test (`p = 0.426`)** **confirms** that the **model as a whole does not violate the proportional hazards assumption.** One individual predictor (GSVA: Synapse Assembly) shows a **borderline** result (`p = 0.049`) at the individual level, but this **does not affect the global assumption test**, and this **predictor was not statistically significant** in the Cox model itself (HR=1.449, `p=0.345`). **No corrections are required**; the **Cox model results in Section 4.3 are statistically valid and can be interpreted as stated.**
+
+## 5. Save Outputs
+
+### 5.1. Save Results
+
+```{r}
+#| label: save_results
+
+
+# integrated pathway analysis summary table
+write_csv(
+  pathway_analysis_results_integrated_summary,
+  "../04_results/08_integration_and_interpretation/01_pathway_analysis_integrated_summary.csv"
+)
+
+# gsva per-sample pathway activity scores
+saveRDS(
+  gsva_scores,
+  "../04_results/08_integration_and_interpretation/02_gsva_pathway_activity_scores.rds"
+)
+
+# pathway-celltype correlation results
+write_csv(
+  correlation_by_subtype,
+  "../04_results/08_integration_and_interpretation/03_pathway_celltype_correlation_results.csv"
+)
+
+
+
+# patient survival data
+write_csv(
+  patient_survival_data,
+  "../04_results/08_integration_and_interpretation/04_patient_survival_data.csv"
+)
+
+
+
+# fitted cox model object
+saveRDS(
+  cox_model,
+  "../04_results/08_integration_and_interpretation/05_cox_model.rds"
+)
+
+# cox model results (hazard ratios, CIs, p-values)
+write_csv(
+  cox_results,
+  "../04_results/08_integration_and_interpretation/06_cox_model_results.csv"
+)
+
+
+
+# schoenfeld residuals test object
+saveRDS(
+  schoenfeld_residuals_ph_test,
+  "../04_results/08_integration_and_interpretation/07_schoenfeld_residuals_test.rds"
+)
+
+cat("Saved 4 CSV files and 3 RDS files.")
+```
+
+### 5.2. Save Plots
+
+```{r}
+#| label: save_plot
+
+
+# pathway-celltype correlation heatmap
+ggsave(
+  "../03_figures/08_integration_and_interpretation/01_pathway_celltype_correlation_heatmap.png",
+  plot   = pathway_celltype_correlation_heatmap,
+  width  = 20,
+  height = 8,
+  dpi    = 300
+)
+
+# kaplan-meier survival curves plot
+png(
+  "../03_figures/08_integration_and_interpretation/02_km_survival_curves.png",
+  width  = 8,
+  height = 8,
+  units  = "in",
+  res    = 300
+)
+print(km_plot)
+dev.off()
+
+# cox model forest plot
+ggsave(
+  "../03_figures/08_integration_and_interpretation/03_cox_forest_plot.png",
+  plot   = cox_forest_plot,
+  width  = 10,
+  height = 6,
+  dpi    = 300
+)
+
+# schoenfeld residuals plot
+png(
+  "../03_figures/08_integration_and_interpretation/04_schoenfeld_residuals.png",
+  width  = 15,
+  height = 8,
+  units  = "in",
+  res    = 300
+)
+par(mfrow = c(2, 4))
+plot(schoenfeld_residuals_ph_test)
+mtext(
+  "Schoenfeld Residuals: Proportional Hazards Assumption Check",
+  side  = 3,
+  line  = -1.5,
+  outer = TRUE,
+  font  = 2,
+  cex   = 1.2
+)
+dev.off()
+
+cat("Saved 4 plots.")
+```
+
+## 6. Perform Sanity Checks
+
+```{r}
+#| label: perform_sanity_checks
+
+
+# data files
+pathway_analysis_integrated_summary_exists  <- file.exists("../04_results/08_integration_and_interpretation/01_pathway_analysis_integrated_summary.csv")
+gsva_pathway_activity_scores_exists         <- file.exists("../04_results/08_integration_and_interpretation/02_gsva_pathway_activity_scores.rds")
+pathway_celltype_correlation_results_exists <- file.exists("../04_results/08_integration_and_interpretation/03_pathway_celltype_correlation_results.csv")
+patient_survival_data_exists                <- file.exists("../04_results/08_integration_and_interpretation/04_patient_survival_data.csv")
+cox_model_exists                            <- file.exists("../04_results/08_integration_and_interpretation/05_cox_model.rds")
+cox_model_results_exists                    <- file.exists("../04_results/08_integration_and_interpretation/06_cox_model_results.csv")
+schoenfeld_residuals_test_exists            <- file.exists("../04_results/08_integration_and_interpretation/07_schoenfeld_residuals_test.rds")
+
+
+# plot files
+pathway_celltype_correlation_heatmap_exists <- file.exists("../03_figures/08_integration_and_interpretation/01_pathway_celltype_correlation_heatmap.png")
+km_survival_curves_exists                   <- file.exists("../03_figures/08_integration_and_interpretation/02_km_survival_curves.png")
+cox_forest_plot_exists                      <- file.exists("../03_figures/08_integration_and_interpretation/03_cox_forest_plot.png")
+schoenfeld_residuals_exists                 <- file.exists("../03_figures/08_integration_and_interpretation/04_schoenfeld_residuals.png")
+
+
+
+cat("Pathway analysis integrated summary saved:      ", ifelse(pathway_analysis_integrated_summary_exists,  "✓", "✗"), "\n")
+cat("GSVA pathway activity scores saved:             ", ifelse(gsva_pathway_activity_scores_exists,         "✓", "✗"), "\n")
+cat("Pathway-celltype correlation results saved:     ", ifelse(pathway_celltype_correlation_results_exists, "✓", "✗"), "\n")
+cat("Patient survival data saved:                    ", ifelse(patient_survival_data_exists,                "✓", "✗"), "\n")
+cat("Cox model saved:                                ", ifelse(cox_model_exists,                            "✓", "✗"), "\n")
+cat("Cox model results saved:                        ", ifelse(cox_model_results_exists,                    "✓", "✗"), "\n")
+cat("Schoenfeld residuals test saved:                ", ifelse(schoenfeld_residuals_test_exists,            "✓", "✗"), "\n\n")
+
+cat("Pathway-celltype correlation heatmap saved:     ", ifelse(pathway_celltype_correlation_heatmap_exists, "✓", "✗"), "\n")
+cat("KM survival curves saved:                       ", ifelse(km_survival_curves_exists,                   "✓", "✗"), "\n")
+cat("Cox forest plot saved:                          ", ifelse(cox_forest_plot_exists,                      "✓", "✗"), "\n")
+cat("Schoenfeld residuals plot saved:                ", ifelse(schoenfeld_residuals_exists,                 "✓", "✗"), "\n")
+
+
+if (
+  all(
+    pathway_analysis_integrated_summary_exists,
+    gsva_pathway_activity_scores_exists,
+    pathway_celltype_correlation_results_exists,
+    patient_survival_data_exists,
+    cox_model_exists,
+    cox_model_results_exists,
+    schoenfeld_residuals_test_exists,
+    
+    pathway_celltype_correlation_heatmap_exists,
+    km_survival_curves_exists,
+    cox_forest_plot_exists,
+    schoenfeld_residuals_exists
+  )
+) {
+  cat("\nNotebook 08 complete — all outputs verified\n")
+} else {
+  cat("\nWARNING: One or more outputs missing\n")
+}
+```
