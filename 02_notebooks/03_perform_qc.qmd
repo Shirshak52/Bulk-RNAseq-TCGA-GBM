@@ -1,0 +1,1061 @@
+---
+title: "Notebook 03: Perform QC"
+author: "Shirshak Aryal"
+date: today
+format:
+  html:
+    code-overflow: scroll
+    embed-resources: true
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+Perform **Quality Control (QC) measures** on the **`unstranded` raw counts matrix**. This project focuses on **proneural and mesenchymal subtypes only**, and it is customary to analyze **only the coding genes** since **proteins** are the structural and functional components of any cell; [they are literally what makes up the cell in the first place]{.underline}.
+
+The QC steps therefore are applied to the **subset of only the coding genes of Proneural (PN) and Mesenchymal (ME) tumors**. Hence, the QC steps are:
+
+-   only **retain** the samples of the **Proneural (PN) and Mesenchymal (ME)** tumor subtypes
+
+-   only **retain protein-coding genes**
+
+Then:
+
+-   **QC genes**: Remove **lowly expressed genes.** A gene is retained only if it has a count that is **proportionally enough** in at least **X% of the smaller group's samples**.
+
+-   **QC samples**:
+
+    -   Remove samples with **low library sizes**. Some samples may have been **poorly sequenced**, resulting in **artificially low counts** that do not reliably represent the true expression levels of their genes.
+
+    -   Remove samples with **too few genes with non-zero counts**.
+
+-   **PCA plot**: **Sanity check** the data with a PCA plot to diagnose/resolve any **batch effects.**
+
+and then save the insights and outputs.
+
+## 1. Import Libraries
+
+```{r}
+#| label: import_libraries
+
+
+library(tidyverse)  # data manipulation and visualisation
+library(patchwork)  # combine multiple ggplot2 plots into one canvas
+
+cat("\nLibraries loaded successfully\n")
+cat("tidyverse version:", as.character(packageVersion("tidyverse")), "\n")
+cat("patchwork version:", as.character(packageVersion("patchwork")), "\n")
+```
+
+## 2. Load Data
+
+### 2.1. Load Raw Counts Matrix
+
+Load the `unstranded` raw counts matrix.
+
+```{r}
+#| label: load_raw_counts_matrix
+
+
+raw_counts_matrix <- readRDS("../01_data/02_processed/01_raw_counts_matrix.rds")
+cat("Raw counts matrix loaded:", nrow(raw_counts_matrix), "genes x", ncol(raw_counts_matrix), "samples\n")
+
+cat("\n\nFirst few rows (genes) and columns (samples):\n\n")
+raw_counts_matrix[1:3, 1:3]
+```
+
+### 2.2. Load Tumor Subtype Information
+
+```{r}
+#| label: load_tumor_subtype_info
+
+
+tumor_subtype_info <- readRDS("../01_data/02_processed/02_tumor_subtype_info.rds")
+cat("Tumor subtype info loaded:", nrow(tumor_subtype_info), "samples\n")
+
+cat("\n\nFirst few rows (samples) and columns (tumor subtype info):\n\n")
+tumor_subtype_info[1:3, 1:5] %>% as.data.frame() %>% knitr::kable()
+```
+
+### 2.3. Load Gene Metadata
+
+```{r}
+#| label: load_gene_metadata
+
+
+gene_metadata <- readRDS("../01_data/02_processed/03_gene_metadata.rds")
+cat("Gene metadata loaded:", nrow(gene_metadata), "genes\n")
+
+cat("\n\nFirst few rows (genes) and columns (gene metadata):\n\n")
+gene_metadata[1:5, 1:5] %>% as.data.frame() %>% knitr::kable()
+```
+
+## 3. Visualise Pre-QC Data
+
+These plots will serve as the basis of comparison with post-QC data plots to adjust/justify the filtering choices made below.
+
+### 3.1. Create Individual Pre-QC Plots
+
+#### 3.1.1. Plot Pre-QC Subtype Distribution
+
+```{r}
+#| label: plot_pre_qc_subtype_distribution
+
+#| fig-width: 5   # canvas width
+#| fig-height: 5  # canvas height
+
+
+# data source
+pre_subtype_data <- as.data.frame(tumor_subtype_info) %>%  # data source
+                    count(paper_Transcriptome.Subtype)     # freq of each subtype
+
+# data to plot
+# NOTE: plot is horizontal, hence x and y mappings are exchanged
+pre_subtype_mapping <- aes(
+                         y = paper_Transcriptome.Subtype,  # subtype names as y ticks
+                         x = n                             # subtype frequency as x ticks
+                       )
+
+# plot color
+pre_subtype_fill <- "steelblue"
+
+# plot labels
+pre_subtype_labels <- labs(
+                        title = "Pre-QC Subtype Distribution",  # plot title
+                        y = "Subtypes",                         # y-axis label
+                        x = "Num of Samples"                    # x-axis label
+                      )
+
+# create plot
+pre_subtype_plot <- ggplot(pre_subtype_data, pre_subtype_mapping) +          # data
+  
+                    geom_bar(                                                # plot bar graph
+                      stat = "identity",                                     # use the 'n' calculated above instead of re-counting the num of rows as done normally
+                      fill = pre_subtype_fill                                # bar color
+                    ) +
+  
+                    geom_text(
+                      aes(label = n),                                        # display the count value
+                      hjust = -0.2,                                          # nudge label just outside the bar end
+                      size = 4
+                    ) +
+                    xlim(0, max(pre_subtype_data$n) * 1.1) +                 # expand x axis slightly so label isn't clipped
+  
+                    pre_subtype_labels +                                     # labels
+  
+                    theme_minimal() +                                        # color theme
+                    theme(
+                      plot.title = element_text(hjust = 0.5),                # center the title
+                      axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
+                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                    )
+
+# show plot
+pre_subtype_plot
+```
+
+#### 3.1.2. Plot Pre-QC Gene Biotype Distribution
+
+```{r}
+#| label: plot_pre_qc_gene_biotype_distribution
+
+#| fig-width: 5   # canvas width
+#| fig-height: 5  # canvas height
+
+
+# data source
+pre_biotype_data <- gene_metadata %>%     # data source
+                    count(gene_type) %>%  # count num of each biotype
+                    arrange(desc(n)) %>%  # descending order
+                    slice_head(n = 10)    # show only top 10
+
+# data to plot
+# NOTE: plot is horizontal, hence x and y mappings are exchanged
+pre_biotype_mapping <- aes(
+                         y = reorder(gene_type, n),  # biotype names as y ticks 
+                         x = n                       # biotype frequency as x ticks
+                       )
+
+# plot color
+pre_biotype_fill    <- "steelblue"
+
+# plot labels
+pre_biotype_labels  <- labs(
+                         title = "Pre-QC Top 10 Gene Biotypes",  # plot title
+                         y = "Gene Biotypes",                    # y-axis label
+                         x = "Frequency"                         # x-axis label
+                       )
+
+# create plot
+pre_biotype_plot <- ggplot(pre_biotype_data, pre_biotype_mapping) +          # data
+  
+                    geom_bar(                                                # plot bar graph
+                      stat = "identity",                                     # use the 'n' calculated above instead of re-counting the num of rows as done normally
+                      fill = pre_biotype_fill                                # bar color
+                    ) +
+  
+                    pre_biotype_labels +                                     # labels
+  
+                    theme_minimal() +                                        # color theme
+                    theme(
+                      plot.title = element_text(hjust = 0.5),                # center the title
+                      axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
+                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                    )
+
+# show plot
+pre_biotype_plot
+```
+
+#### 3.1.3. Plot Pre-QC Library Size Distribution
+
+```{r}
+#| label: plot_pre_qc_library_size_distribution
+
+#| fig-width: 5   # canvas width
+#| fig-height: 5  # canvas height
+
+
+# create dataframe with log10 library sizes as a column
+pre_libsize_data    <- data.frame(
+                         lib_size = log10(colSums(raw_counts_matrix))
+                       )
+
+# map lib_size column to x axis
+pre_libsize_mapping <- aes(x = lib_size)
+
+# plot color
+pre_libsize_fill    <- "steelblue"
+
+# plot labels
+pre_libsize_labels  <- labs(
+                         title = "Pre-QC Library Sizes",     # plot title
+                         x = "Library Sizes (log10 scale)",  # x-axis label
+                         y = "Num of Samples"                # y-axis label
+                       )
+
+# create plot
+pre_libsize_plot <- ggplot(pre_libsize_data, pre_libsize_mapping) +          # data
+  
+                    geom_histogram(                                          # plot histogram
+                      bins = 50,                                             # num of bins
+                      fill = pre_libsize_fill,                               # bin color
+                      colour = "white"                                       # bin outline
+                    ) +
+  
+                    pre_libsize_labels +                                     # labels
+  
+                    theme_minimal() +                                        # color theme
+                    theme(
+                      plot.title = element_text(hjust = 0.5),                # center the title
+                      axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
+                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                    )
+
+# show plot
+pre_libsize_plot
+```
+
+#### 3.1.4. Plot Pre-QC Genes Detected Per Sample
+
+```{r}
+#| label: plot_pre_qc_genes_detected_per_sample
+
+#| fig-width: 5   # canvas width
+#| fig-height: 5  # canvas height
+
+
+# create dataframe with per-sample num of genes with counts > 0 as a column
+pre_genedet_data    <- data.frame(genes_detected = colSums(raw_counts_matrix > 0))
+
+# map genes_detected column to x axis
+pre_genedet_mapping <- aes(x = genes_detected)
+
+# plot color
+pre_genedet_fill    <- "steelblue"
+
+# plot labels
+pre_genedet_labels  <- labs(
+                         title = "Pre-QC Genes Detected Per Sample",  # plot title
+                         x = "Num of Genes with Count > 0",           # x-axis label
+                         y = "Num of Samples"                         # y-axis label
+                       )
+
+# create plot
+pre_genedet_plot <- ggplot(pre_genedet_data, pre_genedet_mapping) +  # data
+  
+                    geom_histogram(                                  # plot histogram
+                      bins = 50,                                     # num of bins
+                      fill = pre_genedet_fill,                       # bin color
+                      colour = "white"                               # bin outline
+                    ) +
+  
+                    pre_genedet_labels +                             # labels
+  
+                    theme_minimal() +                                # color theme
+                    theme(
+                      # center the title
+                      plot.title = element_text(hjust = 0.5),
+
+                      # add top margin to x-axis label
+                      axis.title.x = element_text(margin = margin(t = 10)),
+
+                      # add right margin to y-axis label
+                      axis.title.y = element_text(margin = margin(r = 10))
+                    )
+
+# show plot
+pre_genedet_plot
+```
+
+#### 3.1.5. Plot Pre-QC Expression Density
+
+```{r}
+#| label: plot_pre_qc_expression_density
+
+#| fig-width: 5   # canvas width
+#| fig-height: 5  # canvas height
+
+
+# create dataframe with mean gene expressions as a column
+pre_exprdens_data    <- data.frame(mean_expr = log1p(rowMeans(raw_counts_matrix)))
+
+# map mean_expr column to x axis
+pre_exprdens_mapping <- aes(x = mean_expr)
+
+# plot color
+pre_exprdens_fill    <- "steelblue"
+
+# plot labels
+pre_exprdens_labels  <- labs(
+                         title = "Pre-QC Expression Density",       # plot title
+                         x = "Mean Counts (log1p scale)",           # x-axis label
+                         y = "Density"                              # y-axis label
+                       )
+
+# create plot
+pre_exprdens_plot <- ggplot(pre_exprdens_data, pre_exprdens_mapping) +  # data
+  
+                     geom_density(                                      # density plot
+                       fill = pre_exprdens_fill,                        # line color
+                       alpha = 0.5                                      # opacity
+                     ) +
+  
+                     pre_exprdens_labels +                              # labels
+  
+                     theme_minimal() +                                  # color theme
+                     theme(
+                      # center the title
+                      plot.title = element_text(hjust = 0.5),
+
+                      # add top margin to x-axis label
+                      axis.title.x = element_text(margin = margin(t = 10)),
+
+                      # add right margin to y-axis label
+                      axis.title.y = element_text(margin = margin(r = 10))
+                    )
+
+# show plot
+pre_exprdens_plot
+```
+
+### 3.2. Create Combined Pre-QC Plots
+
+#### 3.2.1. Combine Sample-Level Pre-QC Plots
+
+```{r}
+#| label: combine_sample_level_pre_qc_plots
+
+#| fig-width: 10   # canvas width
+#| fig-height: 15  # canvas height
+
+
+sample_level_pre_qc_plots <-
+(pre_subtype_plot) /
+(pre_libsize_plot | pre_genedet_plot) +
+plot_annotation(
+  title = "Sample-Level Pre-QC Plots",
+  theme = theme(
+            plot.title = element_text(
+              hjust = 0.5,
+              size = 16,
+              face = "bold"
+            )
+          )
+)
+
+sample_level_pre_qc_plots
+```
+
+#### 3.2.2. Combine Gene-Level Pre-QC Plots
+
+```{r}
+#| label: combine_gene_level_pre_qc_plots
+
+#| fig-width: 10   # canvas width
+#| fig-height: 15  # canvas height
+
+
+gene_level_pre_qc_plots <-
+(pre_biotype_plot) /
+(pre_exprdens_plot) +
+plot_annotation(
+  title = "Gene-Level Pre-QC Plots",
+  theme = theme(
+            plot.title = element_text(
+              hjust = 0.5,
+              size = 16,
+              face = "bold"
+            )
+          )
+)
+
+gene_level_pre_qc_plots
+```
+
+## 4. Perform QC
+
+### 4.1. Filter to Proneural and Mesenchymal Samples
+
+#### 4.1.1. Inspect Subtype Names In Tumor Subtype Information
+
+```{r}
+#| label: inspect_subtype_names
+
+
+cat("GBM tumor subtype names:\n")
+tumor_subtype_info %>%
+  as.data.frame() %>%                      # use as dataframe
+  select(paper_Transcriptome.Subtype) %>%  # select Subtype column only
+  head(10) %>%                             # select first 10 rows only
+  knitr::kable()                           # show table
+```
+
+Here, **Proneural** tumors are labeled **PN**, and **Mesenchymal** tumors are labeled **ME**. These labels will be used to filter to only their **specific rows** in the **raw counts matrix**, and their **specific** **columns** in the **tumor subtype information table.**
+
+#### 4.1.2. Filter to Proneural and Mesenchymal Samples
+
+```{r}
+#| label: filter_to_proneural_mesenchymal
+
+# get sample IDs matching PN or ME subtypes
+pn_me_samples <- rownames(tumor_subtype_info)[
+  tumor_subtype_info$paper_Transcriptome.Subtype %in% c("PN", "ME")
+]
+
+# subset raw counts matrix and tumor subtype info file using the selected sample IDs
+raw_counts_matrix      <- raw_counts_matrix[, pn_me_samples]
+tumor_subtype_info     <- tumor_subtype_info[pn_me_samples, ]
+
+cat("Samples retained by subtype:\n")
+print(table(tumor_subtype_info$paper_Transcriptome.Subtype))
+cat("\nTotal samples after filter:", ncol(raw_counts_matrix), "\n")
+```
+
+### 4.2. Filter to Protein Coding Genes
+
+```{r}
+#| label: filter_to_protein_coding_genes
+
+# get gene IDs matching protein_coding biotype
+protein_coding_ids <- rownames(gene_metadata)[
+  gene_metadata$gene_type == "protein_coding"
+]
+
+# subset raw counts matrix and gene metadata file using the selected gene IDs
+raw_counts_matrix <- raw_counts_matrix[
+  rownames(raw_counts_matrix) %in% protein_coding_ids, 
+]
+gene_metadata <- gene_metadata[gene_metadata$gene_type == "protein_coding", ]
+
+cat("Total genes after filter:", nrow(raw_counts_matrix), "\n")
+```
+
+### 4.3. QC Genes: Filter Lowly Expressed Genes
+
+Genes are **retained** only if they have **counts at least CPM \> 1 (industry standard)** and **in at least 20% of the smaller group size** **(reasonable, dataset-specific threshold)**. In this case, that is **20% of the 58 Proneural samples, i.e. \~12 samples.**
+
+#### 4.3.1. CPM Normalize Raw Counts Matrix
+
+```{r}
+#| label: cpm_normalize_raw_counts_matrix
+
+
+cpm_matrix <- sweep(
+                raw_counts_matrix,                 # take raw counts matrix
+                2,                                 # go thru cols (instead of rows)
+                colSums(raw_counts_matrix) / 1e6,  # scaling factor
+                FUN = "/"                          # divide all values by their column-specific scaling factor (hence the '2' specified above)
+              )
+
+cat("CPM matrix dimensions:", nrow(cpm_matrix), "genes x", ncol(cpm_matrix), "samples\n")
+cat("\n\nFirst few rows (genes) and columns (samples):\n\n")
+cpm_matrix[1:3, 1:3]  # show row 1 to 3, column 1 to 3
+```
+
+#### 4.3.2. Filter Lowly Expressed Genes
+
+```{r}
+#| label: filter_lowly_expressed_genes
+
+
+# Threshold: CPM > 1 in at least 20% of Proneural samples (smaller group)
+# The % is iteratively adjusted according to post-QC details
+n_proneural  <- sum(tumor_subtype_info$paper_Transcriptome.Subtype == "PN")
+min_samples  <- ceiling(0.20 * n_proneural)
+
+keep_genes        <- rowSums(cpm_matrix > 1) >= min_samples
+raw_counts_matrix <- raw_counts_matrix[keep_genes, ]
+gene_metadata <- gene_metadata[rownames(gene_metadata) %in% rownames(raw_counts_matrix), ]
+
+cat("Proneural sample count (smaller group):", n_proneural, "\n")
+cat("Min samples threshold (20%):", min_samples, "\n")
+cat("Genes after expression filter:", nrow(raw_counts_matrix), "\n")
+
+cat("\n\nFirst few rows (genes) and columns (samples) after filter:\n\n")
+raw_counts_matrix[1:3, 1:3]  # show row 1 to 3, column 1 to 3
+```
+
+### 4.4. QC Samples
+
+#### 4.4.1. Filter Samples With Low Library Sizes
+
+##### 4.4.1.1. Assess Sample Library Sizes
+
+```{r}
+#| label: assess_sample_library_sizes
+
+
+# Median Absolute Deviation (MAD)-based threshold
+log10_lib_sizes  <- log10(colSums(raw_counts_matrix))  # log10 transform library sizes
+lib_sizes_median <- median(log10_lib_sizes)            # calculate median library size
+lib_sizes_mad    <- mad(log10_lib_sizes)               # calculate MAD
+
+
+# libraries BELOW (not above) 3 MADs are outliers
+# iteratively adjusted according to post-QC details
+lib_sizes_outlier_flags <- log10_lib_sizes < (lib_sizes_median - 3 * lib_sizes_mad)
+
+cat("Library size assessment (log10 scale):\n")
+cat("\nMedian:", round(lib_sizes_median, 3), "\n")
+cat("MAD:   ", round(lib_sizes_mad, 3), "\n")
+cat("\nOutliers flagged (> 3 MADs below median):", sum(lib_sizes_outlier_flags), "\n")
+
+if (any(lib_sizes_outlier_flags)) {
+  cat("Outlier samples:\n")
+  print(names(lib_sizes_outlier_flags)[lib_sizes_outlier_flags])
+}
+```
+
+##### 4.4.1.2. Remove Low Library Size Outlier Samples
+
+```{r}
+#| label: remove_low_library_size_outlier_samples
+
+
+# Subset raw counts matrix and tumor subtype info file to non-outlier samples
+raw_counts_matrix  <- raw_counts_matrix[, !lib_sizes_outlier_flags]
+tumor_subtype_info <- tumor_subtype_info[!lib_sizes_outlier_flags, ]
+
+cat("Samples removed:", sum(lib_sizes_outlier_flags), "\n")
+cat("Samples remaining:", ncol(raw_counts_matrix), "\n")
+cat("\n\nSubtype distribution after removal:\n")
+print(table(tumor_subtype_info$paper_Transcriptome.Subtype))
+```
+
+#### 4.4.2. Filter Samples With Low Gene Detection
+
+Samples where very few genes have any counts at all are removed entirely.
+
+##### 4.4.2.1. Assess Gene Detection
+
+```{r}
+#| label: assess_gene_detection
+
+
+# Median Absolute Deviation (MAD)-based threshold
+num_genes_det        <- colSums(raw_counts_matrix > 0)  # num of genes with counts > 0
+num_genes_det_median <- median(num_genes_det)           # calculate median
+num_genes_det_MAD    <- mad(num_genes_det)              # calculate MAD
+
+
+# samples BELOW (not above) 3 MADs are outliers
+# iteratively adjusted according to post-QC details
+genes_det_outlier_flags <- num_genes_det < (num_genes_det_median - 3 * num_genes_det_MAD)
+
+cat("Gene detection assessment:\n")
+cat("Median genes detected:", round(num_genes_det_median), "\n")
+cat("MAD:                  ", round(num_genes_det_MAD), "\n")
+cat("\nOutliers flagged (> 3 MADs below median):", sum(genes_det_outlier_flags), "\n")
+
+if (any(genes_det_outlier_flags)) {
+  cat("Outlier samples:\n")
+  print(names(genes_det_outlier_flags)[genes_det_outlier_flags])
+}
+```
+
+##### 4.4.2.2. Remove Low Gene Detection Outlier Samples
+
+```{r}
+#| label: remove_low_gene_detection_outlier_samples
+
+
+raw_counts_matrix  <- raw_counts_matrix[, !genes_det_outlier_flags]
+tumor_subtype_info <- tumor_subtype_info[!genes_det_outlier_flags, ]
+
+cat("Samples removed:", sum(genes_det_outlier_flags), "\n")
+cat("Samples remaining:", ncol(raw_counts_matrix), "\n")
+cat("\n\nSubtype distribution after removal:\n")
+print(table(tumor_subtype_info$paper_Transcriptome.Subtype))
+```
+
+## 5. Visualise Post-QC Data
+
+These plots will serve as the basis of comparison with pre-QC data plots to adjust/justify the filtering choices made above.
+
+### 5.1. Create Individual Post-QC Plots
+
+#### 5.1.1. Plot Post-QC Subtype Distribution
+
+```{r}
+#| label: plot_post_qc_subtype_distribution
+
+#| fig-width: 5   # canvas width
+#| fig-height: 5  # canvas height
+
+
+# data source
+post_subtype_data <- tumor_subtype_info %>%              # data source
+                     count(paper_Transcriptome.Subtype)  # freq of each subtype
+
+# data to plot
+# NOTE: plot is horizontal, hence x and y mappings are exchanged
+post_subtype_mapping <- aes(
+                          # subtype names as y ticks
+                          y = paper_Transcriptome.Subtype,
+                         
+                          # subtype frequency as x ticks
+                          x = n
+                        )
+
+# plot color
+post_subtype_fill <- "steelblue"
+
+# plot labels
+post_subtype_labels <- labs(
+                         title = "Post-QC Subtype Distribution",  # plot title
+                         y = "Subtypes",                          # y-axis label
+                         x = "Num of Samples"                     # x-axis label
+                       )
+
+# create plot
+post_subtype_plot <- ggplot(post_subtype_data, post_subtype_mapping) +       # data
+  
+                    geom_bar(                                                # bar graph
+                      stat = "identity",                                     # use the 'n' calculated above instead of re-counting the num of rows as done normally
+                      fill = post_subtype_fill                               # bar color
+                    ) +
+  
+                    geom_text(
+                      aes(label = n),                                        # display the count value
+                      hjust = -0.2,                                          # nudge label just outside the bar end
+                      size = 4
+                    ) +
+                    xlim(0, max(post_subtype_data$n) * 1.1) +                # expand x axis slightly so label isn't clipped
+  
+                    post_subtype_labels +                                    # labels
+  
+                    theme_minimal() +                                        # color theme
+                    theme(
+                      plot.title = element_text(hjust = 0.5),                # center the title
+                      axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
+                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                    )
+
+# show plot
+post_subtype_plot
+```
+
+#### 5.1.2. Plot Post-QC Gene Biotype Distribution
+
+```{r}
+#| label: plot_post_qc_gene_biotype_distribution
+
+#| fig-width: 5   # canvas width
+#| fig-height: 5  # canvas height
+
+
+# data source
+post_biotype_data <- gene_metadata %>%     # data source
+                     count(gene_type) %>%  # count num of each biotype
+                     arrange(desc(n)) %>%  # descending order
+                     slice_head(n = 10)    # show only top 10
+
+# data to plot
+# NOTE: plot is horizontal, hence x and y mappings are exchanged
+post_biotype_mapping <- aes(
+                         y = reorder(gene_type, n),  # biotype names as y ticks 
+                         x = n                       # biotype frequency as x ticks
+                       )
+
+# plot color
+post_biotype_fill    <- "steelblue"
+
+# plot labels
+post_biotype_labels  <- labs(
+                         title = "Post-QC Gene Biotypes",  # plot title
+                         y = "Gene Biotypes",              # y-axis label
+                         x = "Frequency"                   # x-axis label
+                       )
+
+# create plot
+post_biotype_plot <- ggplot(post_biotype_data, post_biotype_mapping) +       # data
+  
+                    geom_bar(                                                # bar graph
+                      stat = "identity",                                     # use the 'n' calculated above instead of re-counting the num of rows as done normally
+                      fill = post_biotype_fill                               # bar color
+                    ) +
+  
+                    post_biotype_labels +                                    # labels
+  
+                    theme_minimal() +                                        # color theme
+                    theme(
+                      plot.title = element_text(hjust = 0.5),                # center the title
+                      axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
+                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                    )
+
+# show plot
+post_biotype_plot
+```
+
+#### 5.1.3. Plot Post-QC Library Size Distribution
+
+```{r}
+#| label: plot_post_qc_library_size_distribution
+
+#| fig-width: 5   # canvas width
+#| fig-height: 5  # canvas height
+
+
+# create dataframe with log10 library sizes as a column
+post_libsize_data    <- data.frame(
+                         lib_size = log10(colSums(raw_counts_matrix))
+                       )
+
+# map lib_size column to x axis
+post_libsize_mapping <- aes(x = lib_size)
+
+# plot color
+post_libsize_fill    <- "steelblue"
+
+# plot labels
+post_libsize_labels  <- labs(
+                         title = "Post-QC Library Sizes",     # plot title
+                         x = "Library Sizes (log10 scale)",   # x-axis label
+                         y = "Num of Samples"                 # y-axis label
+                       )
+
+# create plot
+post_libsize_plot <- ggplot(post_libsize_data, post_libsize_mapping) +       # data
+  
+                    geom_histogram(                                          # histogram
+                      bins = 50,                                             # num of bins
+                      fill = post_libsize_fill,                              # bin color
+                      colour = "white"                                       # bin outline
+                    ) +
+  
+                    post_libsize_labels +                                    # labels
+  
+                    theme_minimal() +                                        # color theme
+                    theme(
+                      plot.title = element_text(hjust = 0.5),                # center the title
+                      axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
+                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                    )
+
+# show plot
+post_libsize_plot
+```
+
+#### 5.1.4. Plot Post-QC Genes Detected Per Sample
+
+```{r}
+#| label: plot_post_qc_genes_detected_per_sample
+
+#| fig-width: 5   # canvas width
+#| fig-height: 5  # canvas height
+
+
+# create dataframe with per-sample num of genes with counts > 0 as a column
+post_genedet_data    <- data.frame(genes_detected = colSums(raw_counts_matrix > 0))
+
+# map genes_detected column to x axis
+post_genedet_mapping <- aes(x = genes_detected)
+
+# plot color
+post_genedet_fill    <- "steelblue"
+
+# plot labels
+post_genedet_labels  <- labs(
+                         title = "Post-QC Genes Detected Per Sample",  # plot title
+                         x = "Num of Genes with Count > 0",            # x-axis label
+                         y = "Num of Samples"                          # y-axis label
+                       )
+
+# create plot
+post_genedet_plot <- ggplot(post_genedet_data, post_genedet_mapping) +       # data
+                    geom_histogram(                                          # histogram
+                      bins = 50,                                             # num of bins
+                      fill = post_genedet_fill,                              # bin color
+                      colour = "white"                                       # bin outline
+                    ) +
+                    post_genedet_labels +                                    # labels
+                    theme_minimal() +                                        # color theme
+                    theme(
+                      plot.title = element_text(hjust = 0.5),                # center the title
+                      axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
+                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                    )
+
+# show plot
+post_genedet_plot
+```
+
+#### 5.1.5. Plot Post-QC Expression Density
+
+```{r}
+#| label: plot_post_qc_expression_density
+
+#| fig-width: 5   # canvas width
+#| fig-height: 5  # canvas height
+
+
+# create dataframe with mean gene expressions as a column
+post_exprdens_data    <- data.frame(mean_expr = log1p(rowMeans(raw_counts_matrix)))
+
+# map mean_expr column to x axis
+post_exprdens_mapping <- aes(x = mean_expr)
+
+# plot color
+post_exprdens_fill    <- "steelblue"
+
+# plot labels
+post_exprdens_labels  <- labs(
+                         title = "Post-QC Expression Density",       # plot title
+                         x = "Mean Counts (log1p scale)",            # x-axis label
+                         y = "Density"                               # y-axis label
+                       )
+
+# create plot
+post_exprdens_plot <- ggplot(post_exprdens_data, post_exprdens_mapping) +    # data
+  
+                     geom_density(                                           # density plot
+                       fill = post_exprdens_fill,                            # line color
+                       alpha = 0.5                                           # opacity
+                     ) +
+  
+                     post_exprdens_labels +                                  # labels
+  
+                     theme_minimal() +                                       # color theme
+                     theme(
+                      plot.title = element_text(hjust = 0.5),                # center the title
+                      axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
+                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                    )
+
+# show plot
+post_exprdens_plot
+```
+
+### 5.2. Create Combined Post-QC Plots
+
+#### 5.2.1. Combine Sample-Level Post-QC Plots
+
+```{r}
+#| label: combine_sample_level_post_qc_plots
+
+#| fig-width: 10   # canvas width
+#| fig-height: 15  # canvas height
+
+
+sample_level_post_qc_plots <-
+(post_subtype_plot) /
+(post_libsize_plot | post_genedet_plot) +
+plot_annotation(
+  title = "Sample-Level Post-QC Plots",
+  theme = theme(
+            plot.title = element_text(
+              hjust = 0.5,
+              size = 16,
+              face = "bold"
+            )
+          )
+)
+
+sample_level_post_qc_plots
+```
+
+#### 5.2.2. Combine Gene-Level Post-QC Plots
+
+```{r}
+#| label: combine_gene_level_post_qc_plots
+
+#| fig-width: 10   # canvas width
+#| fig-height: 15  # canvas height
+
+
+gene_level_post_qc_plots <-
+(post_biotype_plot) /
+(post_exprdens_plot) +
+plot_annotation(
+  title = "Gene-Level Post-QC Plots",
+  theme = theme(
+            plot.title = element_text(
+              hjust = 0.5,
+              size = 16,
+              face = "bold"
+            )
+          )
+)
+
+gene_level_post_qc_plots
+```
+
+## 6. Save Outputs
+
+### 6.1. Save Filtered Data
+
+#### 6.1.1. Save Filtered Counts Matrix
+
+```{r}
+#| label: save_filtered_counts_matrix
+
+
+saveRDS(raw_counts_matrix, "../01_data/02_processed/04_filtered_counts_matrix.rds")
+cat("Saved: 04_filtered_counts_matrix.rds\n")
+cat("Dimensions:", nrow(raw_counts_matrix), "genes x", ncol(raw_counts_matrix), "samples\n")
+```
+
+#### 6.1.2. Save Filtered Tumor Subtype Information
+
+```{r}
+#| label: save_filtered_tumor_subtype_info
+
+
+saveRDS(tumor_subtype_info, "../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
+cat("Saved: 05_filtered_tumor_subtype_info.rds\n")
+cat("Samples remaining:", nrow(tumor_subtype_info), "\n")
+```
+
+#### 6.1.3. Save Filtered Gene Metadata
+
+```{r}
+#| label: save_filtered_gene_metadata
+
+
+saveRDS(gene_metadata, "../01_data/02_processed/06_filtered_gene_metadata.rds")
+cat("Saved: 06_filtered_gene_metadata.rds\n")
+cat("Genes remaining:", nrow(gene_metadata), "\n")
+```
+
+### 6.2. Save Combined QC Plots
+
+```{r}
+#| label: save_combined_qc_plots
+
+
+# sample-level pre-qc plots
+ggsave(
+  "../03_figures/03_qc/01_sample_level_pre_qc_plots.png",
+  plot = sample_level_pre_qc_plots,
+  width = 10,
+  height = 15,
+  dpi = 300
+)
+
+
+# gene-level pre-qc plots
+ggsave(
+  "../03_figures/03_qc/02_gene_level_pre_qc_plots.png",
+  plot = gene_level_pre_qc_plots,
+  width = 10,
+  height = 15,
+  dpi = 300
+)
+
+
+# sample-level post-qc plots
+ggsave(
+  "../03_figures/03_qc/03_sample_level_post_qc_plots.png",
+  plot = sample_level_post_qc_plots,
+  width = 10,
+  height = 15,
+  dpi = 300
+)
+
+
+# gene-level post-qc plots
+ggsave(
+  "../03_figures/03_qc/04_gene_level_post_qc_plots.png",
+  plot = gene_level_post_qc_plots,
+  width = 10,
+  height = 15,
+  dpi = 300
+)
+
+
+cat("Saved 4 QC plot files\n")
+```
+
+## 7. Perform Sanity Checks
+
+```{r}
+#| label: perform_sanity_checks
+
+# filtered data
+filtered_counts_exists   <- file.exists("../01_data/02_processed/04_filtered_counts_matrix.rds")
+filtered_subtype_exists  <- file.exists("../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
+filtered_gene_exists     <- file.exists("../01_data/02_processed/06_filtered_gene_metadata.rds")
+
+
+
+# combined qc plots
+sample_level_pre_qc_plots_exists   <- file.exists("../03_figures/03_qc/01_sample_level_pre_qc_plots.png")
+gene_level_pre_qc_plots_exists     <- file.exists("../03_figures/03_qc/02_gene_level_pre_qc_plots.png")
+
+sample_level_post_qc_plots_exists  <- file.exists("../03_figures/03_qc/03_sample_level_post_qc_plots.png")
+gene_level_post_qc_plots_exists    <- file.exists("../03_figures/03_qc/04_gene_level_post_qc_plots.png")
+
+
+
+
+
+# print
+# filtered data
+cat("Filtered counts matrix saved:      ", ifelse(filtered_counts_exists,  "✓", "✗"), "\n")
+cat("Filtered tumor subtype info saved: ", ifelse(filtered_subtype_exists, "✓", "✗"), "\n")
+cat("Filtered gene metadata saved:      ", ifelse(filtered_gene_exists,    "✓", "✗"), "\n")
+
+
+
+# combined qc plots
+cat("\nPre-QC sample level plot saved:    ", ifelse(sample_level_pre_qc_plots_exists,  "✓", "✗"), "\n")
+cat("Pre-QC gene level plot saved:      ", ifelse(gene_level_pre_qc_plots_exists,    "✓", "✗"), "\n")
+
+cat("Post-QC sample level plot saved:   ", ifelse(sample_level_post_qc_plots_exists, "✓", "✗"), "\n")
+cat("Post-QC gene level plot saved:     ", ifelse(gene_level_post_qc_plots_exists,   "✓", "✗"), "\n")
+
+
+
+
+# check for errors
+if (all(filtered_counts_exists, filtered_subtype_exists, filtered_gene_exists,
+        sample_level_pre_qc_plots_exists, gene_level_pre_qc_plots_exists,
+        sample_level_post_qc_plots_exists, gene_level_post_qc_plots_exists)) {
+  cat("\nNotebook 03 complete — all outputs verified\n")
+} else {
+  cat("\nWARNING: One or more outputs missing\n")
+}
+```
