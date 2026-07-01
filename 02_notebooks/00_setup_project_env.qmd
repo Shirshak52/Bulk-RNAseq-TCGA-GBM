@@ -1,0 +1,129 @@
+---
+title: "Notebook 00: Setup Project Environment"
+author: "Shirshak Aryal"
+date: today
+format:
+  html:
+    code-overflow: scroll
+    embed-resources: true
+execute:
+  echo: true
+  message: false
+  warning: false
+---
+
+Validate the R environment, confirm all required packages are installed, and create the project folder structure before starting any analysis.
+
+## 1. Validate R Environment
+
+```{r}
+#| label: validate_r_environment
+
+
+cat("R version:", R.version$major, ".", R.version$minor, "\n")
+cat("R home:", R.home(), "\n")
+```
+
+## 2. Validate Required Packages
+
+```{r}
+#| label: validate_required_packages
+
+
+required_packages <- c(
+  "TCGAbiolinks",          # query and download TCGA datasets from GDC
+  "tidyverse",             # data manipulation and visualisation
+  "SummarizedExperiment",  # container to store multi-assay data; AnnData of R
+  "pheatmap",              # colorful heatmaps
+  "DESeq2",                # differential expression analysis
+  "edgeR",                 # differential expression analysis
+  "apeglm",                # LFC shrinkage for DESeq2 visualization and GSEA ranking
+  "clusterProfiler",       # gene set enrichment and pathway analysis
+  "ggvenn",                # venn diagrams for visualising gene list overlaps
+  "org.Hs.eg.db",          # human gene annotation database
+  "enrichplot",            # visualisation of enrichment results
+  "MCPcounter",            # cell type abundance estimation from bulk RNA-seq using marker gene expression
+  "survival",              # survival analysis (Kaplan-Meier, Cox proportional hazards)
+  "survminer",             # publication-ready survival curve visualisation
+  "GSVA",                  # single-sample gene set enrichment scoring (per-sample pathway activity)
+  "broom"                  # tidying Cox model outputs into clean, readable dataframes
+)
+
+for (pkg in required_packages) {
+  cat(pkg, ":", as.character(packageVersion(pkg)), "\n")
+}
+cat("\nAll required packages present\n")
+```
+
+## 3. Create Project Folder Structure
+
+```{r}
+#| label: create_project_folder_structure
+
+
+dirs <- c(
+  # ========== data ==========
+  # ----- raw data -----
+  
+  # raw sample TSV files from GDC
+  "../01_data/01_raw/01_samples",
+  
+  # raw clinical metadata
+  "../01_data/01_raw/02_clinical",
+  
+  # GBMdeconvoluteR marker gene reference datasets for MCPCounter (from Neftel et al. 2019/Moreno et al. 2022 papers)
+  "../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic",  # Neftel neoplastic + Moreno immune (for primary deconv)
+  "../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic",  # Moreno neoplastic + Moreno immune (for confirmatory deconv)
+  
+  
+  
+  # ----- processed data -----
+  "../01_data/02_processed",  # intermediate processed data states
+  
+  
+  
+  
+  
+  
+  # ========== figures ==========
+  "../03_figures/03_qc",                              # before/after QC filtering plots
+  "../03_figures/04_eda",                             # exploratory data analysis (EDA) plots
+  "../03_figures/05_de_analysis",                     # volcano plot, DESeq2/EdgeR overlap venn diagram, DE heatmap
+  "../03_figures/06_pathway_enrichment",              # pathway enrichment plots
+  "../03_figures/07_deconvolution",                   # cell type composition plots
+  "../03_figures/08_integration_and_interpretation",  # pathway-celltype correlation heatmap, KM plot, Cox model forest plot, Schoenfeld residuals plot
+  
+  
+  
+  # ========== results ==========
+  "../04_results/05_de_analysis",                    # consensus and DESeq2/EdgeR results tables
+  "../04_results/06_pathway_enrichment/01_ora",      # pathway enrichment (ORA) results tables
+  "../04_results/06_pathway_enrichment/02_gsea",     # pathway enrichment (GSEA) results tables
+  "../04_results/07_deconvolution",                  # cell type abundance score estimates
+  "../04_results/08_integration_and_interpretation"  # Cox model object, Cox model results, KM plot results, Scoenfeld residuals, pathway-celltype correlations, etc.
+)
+
+for (d in dirs) {
+  dir.create(d, recursive = TRUE, showWarnings = FALSE)
+  cat("Created:", d, "\n")
+}
+```
+
+## 4. Perform Sanity Checks
+
+```{r}
+#| label: perform_sanity_checks
+
+
+created <- sapply(dirs, dir.exists)
+cat("Folder creation check:\n")
+for (i in seq_along(dirs)) {
+  cat(ifelse(created[i], "✓", "✗"), dirs[i], "\n")
+}
+
+if (all(created)) {
+  cat("\nAll folders created successfully\n")
+} else {
+  cat("\nWARNING: Some folders were not created\n")
+}
+```
