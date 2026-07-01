@@ -1,5 +1,7 @@
 # **Bulk RNA-seq TCGA-GBM Downstream Analysis: Proneural vs Mesenchymal GBM Subtypes**
 
+[![View as HTML](https://img.shields.io/badge/View_as_HTML-GitHub_Pages-blue?style=for-the-badge&logo=github)](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/)
+
 [![R 4.5.3](https://img.shields.io/badge/R-4.5.3-276DC3.svg)](https://www.r-project.org/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **End-to-end bulk RNA-seq downstream analysis pipeline** applied to the **TCGA Glioblastoma Multiforme (GBM) dataset**, focusing on **Proneural (PN) vs Mesenchymal (ME) transcriptional subtypes**.
