@@ -151,7 +151,7 @@ Execute notebooks sequentially (00 → 09). Each notebook saves intermediate out
 
 - **DE consensus**: **Intersection of DESeq2 and EdgeR results (\>94% overlap)** used as the **primary gene list**, ensuring findings are robust to method choice
 
-- **Pathway databases**: [**GO:BP**](GO:BP){.uri} and **KEGG** used throughout, consistent across EDA, pathway enrichment, and GSVA
+- **Pathway databases**: **GO\:BP** and **KEGG** used throughout, consistent across EDA, pathway enrichment, and GSVA
 
 - **Deconvolution marker gene sets**:
     - **Primary set**:
