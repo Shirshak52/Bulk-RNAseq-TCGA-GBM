@@ -6,6 +6,10 @@ format:
   html:
     code-overflow: scroll
     embed-resources: true
+    theme:
+      light: flatly
+      dark: [darkly, ../custom_darktheme.scss]
+    respect-user-color-scheme: true
 execute:
   echo: true
   message: false

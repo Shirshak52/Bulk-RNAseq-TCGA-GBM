@@ -1,0 +1,12 @@
+/*-- scss:defaults --*/
+$body-bg: #000000;      // background color for whole webpage
+
+$code-bg: #4D4D4D;     // background color of monospace text, i.e. markdown text inside backticks (i.e. ``)
+$code-color: #BDBDBD;  // font color of monospace text, i.e. markdown text inside backticks (i.e. ``)
+
+/*-- scss:rules --*/
+@media (prefers-color-scheme: dark) {
+  img {
+    filter: invert(1) hue-rotate(180deg);  // invert plot colors in dark mode
+  }
+}

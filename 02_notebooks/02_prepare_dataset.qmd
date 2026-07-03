@@ -6,6 +6,10 @@ format:
   html:
     code-overflow: scroll
     embed-resources: true
+    theme:
+      light: flatly
+      dark: [darkly, ../custom_darktheme.scss]
+    respect-user-color-scheme: true
 execute:
   echo: true
   message: false
@@ -317,7 +321,7 @@ The GDCPrepare() function is used here, which performs three things simultaneous
 
                 -   **Transcriptomic subtyping**: Based on **RNA** expression levels.
 
-        -   The **2010 paper** is specifically the paper titled **"Integrated Genomic Analysis Identifies Clinically Relevant Subtypes of Glioblastoma Characterized by Abnormalities in PDGFRA, IDH1, EGFR, and NF1"** by **Verhaak et al.**, which was the **original paper that classified transcriptome profiles of GBM tumors into 4 distinct clusters**. This paper specifically used **transcriptomic profiling** as the **primary** classification, then validated their findings with **genomic** and **epigenomic** subtyping, which revealed that the tumors had **distinct molecular signatures in the DNA level as well**, not just in the RNA level.
+        -   The **2010 paper** is specifically the paper titled ***Integrated Genomic Analysis Identifies Clinically Relevant Subtypes of Glioblastoma Characterized by Abnormalities in PDGFRA, IDH1, EGFR, and NF1*** by **Verhaak et al.**, which was the **original paper that classified transcriptome profiles of GBM tumors into 4 distinct clusters**. This paper specifically used **transcriptomic profiling** as the **primary** classification, then validated their findings with **genomic** and **epigenomic** subtyping, which revealed that the tumors had **distinct molecular signatures in the DNA level as well**, not just in the RNA level.
 
 -   **Attaches gene metadata**
 

@@ -6,6 +6,10 @@ format:
   html:
     code-overflow: scroll
     embed-resources: true
+    theme:
+      light: flatly
+      dark: [darkly, ../custom_darktheme.scss]
+    respect-user-color-scheme: true
 execute:
   echo: true
   message: false
@@ -1368,7 +1372,7 @@ For **each predictor**, **the test asks: "do the residuals show any systematic t
 **Results**: **all predictors pass** the assumption check at the conventional threshold, with **one borderline exception**:
 
 | Predictor | p-value | Interpretation |
-|----|----|----|
+|------------------------|------------------------|------------------------|
 | Subtype | 0.151 | Assumption holds |
 | Age at Diagnosis | 0.134 | Assumption holds |
 | GSVA: Positive Regulation of Cytokine Production | 0.205 | Assumption holds |
