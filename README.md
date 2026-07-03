@@ -139,10 +139,10 @@ Execute notebooks sequentially (00 → 09). Each notebook saves intermediate out
 ### Project Pipeline Architecture
 
 <p align="center">
-    <picture>
-        <source media="(prefers-color-scheme: dark)" srcset="gbm_project_pipeline_flowchart_dark.png">
-        <img src="gbm_project_pipeline_flowchart.png" alt="GBM Project Pipeline Flowchart" width=60%>
-    </picture>
+<picture>
+<source media="(prefers-color-scheme: dark)" srcset="gbm_project_pipeline_flowchart_dark.png">
+<img src="gbm_project_pipeline_flowchart.png" alt="GBM Project Pipeline Flowchart" width="60%">
+</picture>
 </p>
 
 ### Analytical Decisions
@@ -218,12 +218,12 @@ Execute notebooks sequentially (00 → 09). Each notebook saves intermediate out
 - **Single-cell GBM States:** [_An Integrative Model of Cellular States, Plasticity, and Genetics for Glioblastoma_](https://doi.org/10.1016/j.cell.2019.06.024) (Neftel et al., 2019)
 - **Deconvolution Marker Gene Sets:** [GBMDeconvoluteR GitHub](https://github.com/GliomaGenomics/GBMDeconvoluteR/tree/main)
 - **Key Analysis Tools:** `TCGAbiolinks`, `DESeq2`, `edgeR`, `clusterProfiler`, `GSVA`, `MCPcounter`, `survival`, `survminer`
-- **Pathway Databases:** <GO:BP> (Gene Ontology Consortium), KEGG (Kyoto University)
+- **Pathway Databases:** GO\:BP (Gene Ontology Consortium), KEGG (Kyoto University)
 
 ## Contact
 
 - **Author:** Shirshak Aryal
-- **Email:** [shirshak.acad\@gmail.com](mailto:shirshak.acad@gmail.com){.email}
+- **Email:** [shirshak.acad@gmail.com](mailto:shirshak.acad@gmail.com)
 
 ## License
 
