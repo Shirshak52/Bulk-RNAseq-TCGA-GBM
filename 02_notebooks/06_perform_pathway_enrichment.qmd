@@ -49,8 +49,8 @@ cat("enrichplot version:      ", as.character(packageVersion("enrichplot")), "\n
 #| label: load_full_deseq2_and_edger_results
 
 
-deseq2_results <- readRDS("../04_results/05_de_analysis/01_deseq2_full_results.rds")
-edger_results <- readRDS("../04_results/05_de_analysis/02_edger_full_results.rds")
+deseq2_results <- readRDS(here::here("04_results", "05_de_analysis", "01_deseq2_full_results.rds"))
+edger_results <- readRDS(here::here("04_results", "05_de_analysis", "02_edger_full_results.rds"))
 
 cat("DESeq2 full results loaded:", nrow(deseq2_results), "genes\n")
 cat("EdgeR full results loaded:", nrow(edger_results), "genes\n")
@@ -275,7 +275,17 @@ ora_consensus_down_go_plot   <- dotplot(
   showCategory = 10,
   title = "ORA Consensus GO:BP Pathways: Downregulated in ME"
 ) +
-theme(plot.title = element_text(hjust = 0.5, size = 14))
+theme(
+  plot.title = element_text(hjust = 0.5, size = 14),
+  
+  # adjust plot margins
+  plot.margin = margin(
+    t = 5.5,
+    r = 5.5,
+    b = 5.5,
+    l = 5.5
+  )
+)
 
 
 
@@ -468,7 +478,17 @@ ora_consensus_down_kegg_plot   <- dotplot(
   showCategory = 10,
   title = "ORA Consensus KEGG Pathways: Downregulated in ME"
 ) +
-theme(plot.title = element_text(hjust = 0.5, size = 14))
+theme(
+  plot.title = element_text(hjust = 0.5, size = 14),
+
+  # adjust plot margins
+  plot.margin = margin(
+    t = 5.5,
+    r = 5.5,
+    b = 5.5,
+    l = 5.5
+  )
+)
 
 
 
@@ -491,7 +511,15 @@ ora_consensus_plots <- (ora_consensus_up_go_plot | ora_consensus_up_kegg_plot) /
     subtitle = "Upregulated (top) and Downregulated (bottom) in Mesenchymal vs Proneural GBM",
     theme    = theme(
       plot.title    = element_text(hjust = 0.5, face = "bold", size = 18),
-      plot.subtitle = element_text(hjust = 0.5, size = 14)
+      plot.subtitle = element_text(hjust = 0.5, size = 14),
+      
+      # adjust plot margins
+      plot.margin = margin(
+        t = 5.5,
+        r = 5.5,
+        b = 5.5,
+        l = 5.5
+      )
     )
   )
 
@@ -691,14 +719,15 @@ cat("EdgeR rank vector length: ", length(edger_rank_vector), "\n")
 
 # GSEA on DESeq2 ranked list
 gsea_deseq2_go <- gseGO(
-  geneList      = deseq2_rank_vector,  # DESeq2 rank vector
-  OrgDb         = org.Hs.eg.db,        # human gene annotation database
-  keyType       = "ENSEMBL",           # gene identifiers are in Ensembl ID format
-  ont           = "BP",                # test against the GO Biological Process (BP) database
+  geneList      = deseq2_rank_vector,           # DESeq2 rank vector
+  OrgDb         = org.Hs.eg.db,                 # human gene annotation database
+  keyType       = "ENSEMBL",                    # gene identifiers are in Ensembl ID format
+  ont           = "BP",                         # test against the GO Biological Process (BP) database
   
-  pAdjustMethod = "BH",                # correct for multiple testing using Benjamini-Hochberg FDR correction
-  pvalueCutoff  = 0.05,                # only consider p-values < 0.05 as significant
-  eps           = 0,                   # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  pAdjustMethod = "BH",                         # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,                         # only consider p-values < 0.05 as significant
+  eps           = 0,                            # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  BPPARAM       = BiocParallel::SerialParam(),  # disable parallel execution to prevent multiprocessing crashes
   
   verbose       = FALSE
 )
@@ -710,14 +739,15 @@ gsea_deseq2_go <- setReadable(gsea_deseq2_go, OrgDb = org.Hs.eg.db, keyType = "E
 
 # GSEA on EdgeR ranked list
 gsea_edger_go <- gseGO(
-  geneList      = edger_rank_vector,  # EdgeR rank vector
-  OrgDb         = org.Hs.eg.db,       # human gene annotation database
-  keyType       = "ENSEMBL",          # gene identifiers are in Ensembl ID format
-  ont           = "BP",               # test against the GO Biological Process (BP) database
+  geneList      = edger_rank_vector,            # EdgeR rank vector
+  OrgDb         = org.Hs.eg.db,                 # human gene annotation database
+  keyType       = "ENSEMBL",                    # gene identifiers are in Ensembl ID format
+  ont           = "BP",                         # test against the GO Biological Process (BP) database
   
-  pAdjustMethod = "BH",               # correct for multiple testing using Benjamini-Hochberg FDR correction
-  pvalueCutoff  = 0.05,               # only consider p-values < 0.05 as significant
-  eps           = 0,                   # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  pAdjustMethod = "BH",                         # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,                         # only consider p-values < 0.05 as significant
+  eps           = 0,                            # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  BPPARAM       = BiocParallel::SerialParam(),  # disable parallel execution to prevent multiprocessing crashes
   
   verbose       = FALSE
 )
@@ -843,7 +873,17 @@ gsea_consensus_down_go_plot   <- dotplot(
   showCategory = 10,
   title = "GSEA Consensus GO:BP Pathways: Downregulated in ME"
 ) +
-theme(plot.title = element_text(hjust = 0.5, size = 14))
+theme(
+  plot.title = element_text(hjust = 0.5, size = 14),
+
+  # adjust plot margins
+  plot.margin = margin(
+    t = 5.5,
+    r = 5.5,
+    b = 5.5,
+    l = 5.5
+  )
+)
 
 
 
@@ -911,13 +951,14 @@ cat("EdgeR Entrez rank vector length: ", length(edger_rank_vector_entrez), "\n")
 
 # GSEA on DESeq2 ranked list
 gsea_deseq2_kegg <- gseKEGG(
-  geneList      = deseq2_rank_vector_entrez,  # DESeq2 full results (Entrez IDs)
-  organism      = "hsa",                      # organism is human (hsa=Homo sapiens)
+  geneList      = deseq2_rank_vector_entrez,    # DESeq2 full results (Entrez IDs)
+  organism      = "hsa",                        # organism is human (hsa=Homo sapiens)
   
-  pAdjustMethod = "BH",                       # correct for multiple testing using Benjamini-Hochberg FDR correction
-  pvalueCutoff  = 0.05,                       # only consider p-values < 0.05 as significant
-  eps           = 0,                          # allow very small p-values to be reported accurately, i.e. without rounding to 0
-  
+  pAdjustMethod = "BH",                         # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,                         # only consider p-values < 0.05 as significant
+  eps           = 0,                            # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  BPPARAM       = BiocParallel::SerialParam(),  # disable parallel execution to prevent multiprocessing crashes
+
   verbose       = FALSE
 )
 
@@ -930,12 +971,13 @@ gsea_deseq2_kegg <- setReadable(gsea_deseq2_kegg, OrgDb = org.Hs.eg.db, keyType 
 
 # GSEA on EdgeR ranked list
 gsea_edger_kegg <- gseKEGG(
-  geneList      = edger_rank_vector_entrez,  # EdgeR full results (Entrez IDs)
-  organism      = "hsa",                     # organism is human (hsa=Homo sapiens)
+  geneList      = edger_rank_vector_entrez,     # EdgeR full results (Entrez IDs)
+  organism      = "hsa",                        # organism is human (hsa=Homo sapiens)
   
-  pAdjustMethod = "BH",                      # correct for multiple testing using Benjamini-Hochberg FDR correction
-  pvalueCutoff  = 0.05,                      # only consider p-values < 0.05 as significant
-  eps           = 0,                         # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  pAdjustMethod = "BH",                         # correct for multiple testing using Benjamini-Hochberg FDR correction
+  pvalueCutoff  = 0.05,                         # only consider p-values < 0.05 as significant
+  eps           = 0,                            # allow very small p-values to be reported accurately, i.e. without rounding to 0
+  BPPARAM       = BiocParallel::SerialParam(),  # disable parallel execution to prevent multiprocessing crashes
   
   verbose       = FALSE
 )
@@ -1045,7 +1087,17 @@ gsea_consensus_down_kegg_plot   <- dotplot(
   showCategory = 10,
   title = "GSEA Consensus KEGG Pathways: Downregulated in ME"
 ) +
-theme(plot.title = element_text(hjust = 0.5, size = 14))
+theme(
+  plot.title = element_text(hjust = 0.5, size = 14),
+  
+  # adjust plot margins
+  plot.margin = margin(
+    t = 5.5,
+    r = 5.5,
+    b = 5.5,
+    l = 5.5
+  )
+)
 
 
 
@@ -1068,7 +1120,15 @@ gsea_consensus_plots <- (gsea_consensus_up_go_plot | gsea_consensus_up_kegg_plot
     subtitle = "Upregulated (top) and Downregulated (bottom) in Mesenchymal vs Proneural GBM",
     theme    = theme(
       plot.title    = element_text(hjust = 0.5, face = "bold", size = 18),
-      plot.subtitle = element_text(hjust = 0.5, size = 14)
+      plot.subtitle = element_text(hjust = 0.5, size = 14),
+
+      # adjust plot margins
+      plot.margin = margin(
+        t = 5.5,
+        r = 5.5,
+        b = 5.5,
+        l = 5.5
+      )
     )
   )
 
@@ -1153,10 +1213,10 @@ The GSEA results, split by enrichment direction, **largely** **reinforce the ORA
 #| label: save_ora_results
 
 
-write_csv(as.data.frame(ora_consensus_up_go),     "../04_results/06_pathway_enrichment/01_ora/01_ora_consensus_upregulated_gobp.csv")
-write_csv(as.data.frame(ora_consensus_up_kegg),   "../04_results/06_pathway_enrichment/01_ora/02_ora_consensus_upregulated_kegg.csv")
-write_csv(as.data.frame(ora_consensus_down_go),   "../04_results/06_pathway_enrichment/01_ora/03_ora_consensus_downregulated_gobp.csv")
-write_csv(as.data.frame(ora_consensus_down_kegg), "../04_results/06_pathway_enrichment/01_ora/04_ora_consensus_downregulated_kegg.csv")
+write_csv(as.data.frame(ora_consensus_up_go),     here::here("04_results", "06_pathway_enrichment", "01_ora", "01_ora_consensus_upregulated_gobp.csv"))
+write_csv(as.data.frame(ora_consensus_up_kegg),   here::here("04_results", "06_pathway_enrichment", "01_ora", "02_ora_consensus_upregulated_kegg.csv"))
+write_csv(as.data.frame(ora_consensus_down_go),   here::here("04_results", "06_pathway_enrichment", "01_ora", "03_ora_consensus_downregulated_gobp.csv"))
+write_csv(as.data.frame(ora_consensus_down_kegg), here::here("04_results", "06_pathway_enrichment", "01_ora", "04_ora_consensus_downregulated_kegg.csv"))
 
 
 cat("ORA results saved\n")
@@ -1168,10 +1228,10 @@ cat("ORA results saved\n")
 #| label: save_gsea_results
 
 
-write_csv(gsea_consensus_up_go,   "../04_results/06_pathway_enrichment/02_gsea/01_gsea_consensus_upregulated_gobp.csv")
-write_csv(gsea_consensus_up_kegg,   "../04_results/06_pathway_enrichment/02_gsea/02_gsea_consensus_upregulated_kegg.csv")
-write_csv(gsea_consensus_down_go, "../04_results/06_pathway_enrichment/02_gsea/03_gsea_consensus_downregulated_gobp.csv")
-write_csv(gsea_consensus_down_kegg, "../04_results/06_pathway_enrichment/02_gsea/04_gsea_consensus_downregulated_kegg.csv")
+write_csv(gsea_consensus_up_go,     here::here("04_results", "06_pathway_enrichment", "02_gsea", "01_gsea_consensus_upregulated_gobp.csv"))
+write_csv(gsea_consensus_up_kegg,   here::here("04_results", "06_pathway_enrichment", "02_gsea", "02_gsea_consensus_upregulated_kegg.csv"))
+write_csv(gsea_consensus_down_go,   here::here("04_results", "06_pathway_enrichment", "02_gsea", "03_gsea_consensus_downregulated_gobp.csv"))
+write_csv(gsea_consensus_down_kegg, here::here("04_results", "06_pathway_enrichment", "02_gsea", "04_gsea_consensus_downregulated_kegg.csv"))
 
 cat("GSEA results saved\n")
 ```
@@ -1182,8 +1242,8 @@ cat("GSEA results saved\n")
 #| label: save_pathway_enrichment_plots
 
 
-ggsave("../03_figures/06_pathway_enrichment/01_ora_consensus_plots.png",  plot = ora_consensus_plots,  width = 20, height = 10, dpi = 300)
-ggsave("../03_figures/06_pathway_enrichment/02_gsea_consensus_plots.png", plot = gsea_consensus_plots, width = 20, height = 10, dpi = 300)
+ggsave(here::here("03_figures", "06_pathway_enrichment", "01_ora_consensus_plots.png"),  plot = ora_consensus_plots,  width = 20, height = 10, dpi = 300)
+ggsave(here::here("03_figures", "06_pathway_enrichment", "02_gsea_consensus_plots.png"), plot = gsea_consensus_plots, width = 20, height = 10, dpi = 300)
 
 cat("Pathway enrichment plots saved\n")
 ```
@@ -1194,19 +1254,19 @@ cat("Pathway enrichment plots saved\n")
 #| label: perform_sanity_checks
 
 
-ora_consensus_up_go_exists     <- file.exists("../04_results/06_pathway_enrichment/01_ora/01_ora_consensus_upregulated_gobp.csv")
-ora_consensus_up_kegg_exists     <- file.exists("../04_results/06_pathway_enrichment/01_ora/02_ora_consensus_upregulated_kegg.csv")
-ora_consensus_down_go_exists     <- file.exists("../04_results/06_pathway_enrichment/01_ora/03_ora_consensus_downregulated_gobp.csv")
-ora_consensus_down_kegg_exists     <- file.exists("../04_results/06_pathway_enrichment/01_ora/04_ora_consensus_downregulated_kegg.csv")
+ora_consensus_up_go_exists       <- file.exists(here::here("04_results", "06_pathway_enrichment", "01_ora", "01_ora_consensus_upregulated_gobp.csv"))
+ora_consensus_up_kegg_exists     <- file.exists(here::here("04_results", "06_pathway_enrichment", "01_ora", "02_ora_consensus_upregulated_kegg.csv"))
+ora_consensus_down_go_exists     <- file.exists(here::here("04_results", "06_pathway_enrichment", "01_ora", "03_ora_consensus_downregulated_gobp.csv"))
+ora_consensus_down_kegg_exists   <- file.exists(here::here("04_results", "06_pathway_enrichment", "01_ora", "04_ora_consensus_downregulated_kegg.csv"))
 
-gsea_consensus_up_go_exists     <- file.exists("../04_results/06_pathway_enrichment/02_gsea/01_gsea_consensus_upregulated_gobp.csv")
-gsea_consensus_up_kegg_exists     <- file.exists("../04_results/06_pathway_enrichment/02_gsea/02_gsea_consensus_upregulated_kegg.csv")
-gsea_consensus_down_go_exists     <- file.exists("../04_results/06_pathway_enrichment/02_gsea/03_gsea_consensus_downregulated_gobp.csv")
-gsea_consensus_down_kegg_exists     <- file.exists("../04_results/06_pathway_enrichment/02_gsea/04_gsea_consensus_downregulated_kegg.csv")
+gsea_consensus_up_go_exists      <- file.exists(here::here("04_results", "06_pathway_enrichment", "02_gsea", "01_gsea_consensus_upregulated_gobp.csv"))
+gsea_consensus_up_kegg_exists    <- file.exists(here::here("04_results", "06_pathway_enrichment", "02_gsea", "02_gsea_consensus_upregulated_kegg.csv"))
+gsea_consensus_down_go_exists    <- file.exists(here::here("04_results", "06_pathway_enrichment", "02_gsea", "03_gsea_consensus_downregulated_gobp.csv"))
+gsea_consensus_down_kegg_exists  <- file.exists(here::here("04_results", "06_pathway_enrichment", "02_gsea", "04_gsea_consensus_downregulated_kegg.csv"))
 
 
-ora_consensus_plots_exists  <- file.exists("../03_figures/06_pathway_enrichment/01_ora_consensus_plots.png")
-gsea_consensus_plots_exists <- file.exists("../03_figures/06_pathway_enrichment/02_gsea_consensus_plots.png")
+ora_consensus_plots_exists   <- file.exists(here::here("03_figures", "06_pathway_enrichment", "01_ora_consensus_plots.png"))
+gsea_consensus_plots_exists  <- file.exists(here::here("03_figures", "06_pathway_enrichment", "02_gsea_consensus_plots.png"))
 
 
 

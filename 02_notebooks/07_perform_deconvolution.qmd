@@ -103,7 +103,7 @@ cat("org.Hs.eg.db version:      ", as.character(packageVersion("org.Hs.eg.db")),
 #| label: load_filtered_counts_matrix
 
 
-filtered_counts_matrix <- readRDS("../01_data/02_processed/04_filtered_counts_matrix.rds")
+filtered_counts_matrix <- readRDS(here::here("01_data", "02_processed", "04_filtered_counts_matrix.rds"))
 cat("Filtered counts matrix loaded:", nrow(filtered_counts_matrix), "genes x", ncol(filtered_counts_matrix), "samples\n")
 ```
 
@@ -113,7 +113,7 @@ cat("Filtered counts matrix loaded:", nrow(filtered_counts_matrix), "genes x", n
 #| label: load_filtered_tumor_subtype_info
 
 
-tumor_subtype_info <- readRDS("../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
+tumor_subtype_info <- readRDS(here::here("01_data", "02_processed", "05_filtered_tumor_subtype_info.rds"))
 cat("Filtered tumor subtype info loaded:", nrow(tumor_subtype_info), "samples\n")
 ```
 
@@ -148,14 +148,14 @@ base_url <- "https://raw.githubusercontent.com/GliomaGenomics/GBMDeconvoluteR/ma
 # Neftel neoplastic
 download.file(
   url      = paste0(base_url, "Neftel_et_al_2019_four_state_neoplastic_markers.rds"),
-  destfile = "../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/neftel_neoplastic_markers.rds",
+  destfile = here::here("01_data", "01_raw", "03_deconvolution_references", "01_neftel_neoplastic", "neftel_neoplastic_markers.rds"),
   mode     = "wb"
 )
 
 # Moreno immune
 download.file(
   url      = paste0(base_url, "Moreno_et_al_2022_lvl3_immune_markers.rds"),
-  destfile = "../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/moreno_immune_markers.rds",
+  destfile = here::here("01_data", "01_raw", "03_deconvolution_references", "01_neftel_neoplastic", "moreno_immune_markers.rds"),
   mode     = "wb"
 )
 
@@ -179,14 +179,14 @@ base_url <- "https://raw.githubusercontent.com/GliomaGenomics/GBMDeconvoluteR/ma
 # Moreno neoplastic
 download.file(
   url      = paste0(base_url, "Moreno_et_al_2022_lvl3_neoplastic_markers.rds"),
-  destfile = "../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_neoplastic_markers.rds",
+  destfile = here::here("01_data", "01_raw", "03_deconvolution_references", "02_moreno_neoplastic", "moreno_neoplastic_markers.rds"),
   mode     = "wb"
 )
 
 # Moreno immune (same as in primary, but saved separately with Moreno neoplastic)
 download.file(
   url      = paste0(base_url, "Moreno_et_al_2022_lvl3_immune_markers.rds"),
-  destfile = "../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_immune_markers.rds",
+  destfile = here::here("01_data", "01_raw", "03_deconvolution_references", "02_moreno_neoplastic", "moreno_immune_markers.rds"),
   mode     = "wb"
 )
 
@@ -204,12 +204,12 @@ cat("  moreno_immune_markers.rds\n")
 
 
 # Primary: Neftel neoplastic + Moreno immune
-neftel_neoplastic <- readRDS("../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/neftel_neoplastic_markers.rds")
-moreno_immune_primary   <- readRDS("../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/moreno_immune_markers.rds")
+neftel_neoplastic       <- readRDS(here::here("01_data", "01_raw", "03_deconvolution_references", "01_neftel_neoplastic", "neftel_neoplastic_markers.rds"))
+moreno_immune_primary   <- readRDS(here::here("01_data", "01_raw", "03_deconvolution_references", "01_neftel_neoplastic", "moreno_immune_markers.rds"))
 
 # Confirmatory: Moreno neoplastic + Moreno immune
-moreno_neoplastic <- readRDS("../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_neoplastic_markers.rds")
-moreno_immune_confirmatory   <- readRDS("../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_immune_markers.rds")
+moreno_neoplastic           <- readRDS(here::here("01_data", "01_raw", "03_deconvolution_references", "02_moreno_neoplastic", "moreno_neoplastic_markers.rds"))
+moreno_immune_confirmatory  <- readRDS(here::here("01_data", "01_raw", "03_deconvolution_references", "02_moreno_neoplastic", "moreno_immune_markers.rds"))
 
 
 
@@ -426,7 +426,17 @@ deconv_combined_median_abundance_scores_heatmap <- (
   wrap_elements(deconv_confirmatory_median_abundance_scores_heatmap)) +
   plot_annotation(
     title = "Deconvolution: Cell Type Abundance by Subtype",
-    theme = theme(plot.title = element_text(hjust = 0.5, size = 16, face = "bold"))
+    theme = theme(
+      plot.title = element_text(hjust = 0.5, size = 16, face = "bold"),
+
+      # adjust plot margins
+      plot.margin = margin(
+        t = 5.5,
+        r = 5.5,
+        b = 5.5,
+        l = 5.5
+      )
+    )
   )
 
 deconv_combined_median_abundance_scores_heatmap
@@ -451,8 +461,8 @@ These findings are **consistent** across both the **primary** (Neftel neoplastic
 
 
 # save deconvolution result dataframes
-saveRDS(deconv_primary_df,      "../04_results/07_deconvolution/01_primary_deconvolution_results.rds")
-saveRDS(deconv_confirmatory_df, "../04_results/07_deconvolution/02_confirmatory_deconvolution_results.rds")
+saveRDS(deconv_primary_df,      here::here("04_results", "07_deconvolution", "01_primary_deconvolution_results.rds"))
+saveRDS(deconv_confirmatory_df, here::here("04_results", "07_deconvolution", "02_confirmatory_deconvolution_results.rds"))
 
 cat("Deconvolution results saved\n")
 ```
@@ -464,7 +474,7 @@ cat("Deconvolution results saved\n")
 
 
 png(
-  "../03_figures/07_deconvolution/deconv_combined_median_cell_type_abundance_scores_heatmap.png",
+  here::here("03_figures", "07_deconvolution", "deconv_combined_median_cell_type_abundance_scores_heatmap.png"),
   width = 16,
   height = 6,
   units = "in",
@@ -482,9 +492,9 @@ cat("Deconvolution plots saved\n")
 #| label: perform_sanity_checks
 
 
-primary_results_exists         <- file.exists("../04_results/07_deconvolution/01_primary_deconvolution_results.rds")
-confirmatory_results_exists    <- file.exists("../04_results/07_deconvolution/02_confirmatory_deconvolution_results.rds")
-combined_heatmap_exists        <- file.exists("../03_figures/07_deconvolution/deconv_combined_median_cell_type_abundance_scores_heatmap.png")
+primary_results_exists         <- file.exists(here::here("04_results", "07_deconvolution", "01_primary_deconvolution_results.rds"))
+confirmatory_results_exists    <- file.exists(here::here("04_results", "07_deconvolution", "02_confirmatory_deconvolution_results.rds"))
+combined_heatmap_exists        <- file.exists(here::here("03_figures", "07_deconvolution", "deconv_combined_median_cell_type_abundance_scores_heatmap.png"))
 
 cat("Primary deconvolution results saved:                                    ", ifelse(primary_results_exists,      "✓", "✗"), "\n")
 cat("Confirmatory deconvolution results saved:                               ", ifelse(confirmatory_results_exists, "✓", "✗"), "\n")

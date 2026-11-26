@@ -125,19 +125,18 @@ cat("Primary tumor samples:", nrow(results_primary), "\n")
 ```{r}
 #| label: download_filtered_dataset
 
-
 GDCdownload(
-  query = query_primary,
-  directory = "../01_data/01_raw/01_samples",
-  files.per.chunk = 50
+    query = query_primary,
+    directory = here::here("01_data", "01_raw", "01_samples"),
+    files.per.chunk = 50
 )
 
 # Confirm download
 # list.files() returns a list of filenames (as strings)
 downloaded_files <- list.files(
-  path = "../01_data/01_raw/01_samples",  # the directory to look inside for the filenames
-  recursive = TRUE,                       # look inside subfolders too
-  pattern = "\\.tsv$"                     # take only those filenames that end in .tsv
+    path = here::here("01_data", "01_raw", "01_samples"),  # the directory to look inside for the filenames
+    recursive = TRUE,                                      # look inside subfolders too
+    pattern = "\\.tsv$"                                    # take only those filenames that end in .tsv
 )
 
 cat("Download complete\n")
@@ -182,8 +181,7 @@ clinical %>%
 ```{r}
 #| label: save_clinical_metadata
 
-
-saveRDS(clinical, "../01_data/01_raw/02_clinical/01_clinical_metadata.rds")
+saveRDS(clinical, here::here("01_data", "01_raw", "02_clinical", "01_clinical_metadata.rds"))
 cat("Saved to 01_data/01_raw/02_clinical/01_clinical_metadata.rds\n")
 ```
 
@@ -192,17 +190,16 @@ cat("Saved to 01_data/01_raw/02_clinical/01_clinical_metadata.rds\n")
 ```{r}
 #| label: perform_sanity_checks
 
-
 # Confirm sample files downloaded
 sample_files_exist <- length(list.files(
-  "../01_data/01_raw/01_samples",
+  here::here("01_data", "01_raw", "01_samples"),
   recursive = TRUE,
   pattern = "\\.tsv$"
 )) == 372
 
 # Confirm clinical metadata saved
 clinical_file_exists <- file.exists(
-  "../01_data/01_raw/02_clinical/01_clinical_metadata.rds"
+  here::here("01_data", "01_raw", "02_clinical", "01_clinical_metadata.rds")
 )
 
 cat("Sample files (372 TSV):", ifelse(sample_files_exist, "✓", "✗"), "\n")

@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Shirshak Aryal">
-<meta name="dcterms.date" content="2026-07-03">
+<meta name="dcterms.date" content="2026-11-25">
 
 <title>Notebook 07: Perform Deconvolution</title>
 <style>
@@ -2402,7 +2402,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">July 3, 2026</p>
+      <p class="date">November 25, 2026</p>
     </div>
   </div>
   
@@ -2507,7 +2507,7 @@ Libraries loaded successfully</code></pre>
 <section id="load-filtered-counts-matrix" class="level3">
 <h3 class="anchored" data-anchor-id="load-filtered-counts-matrix">2.1. Load Filtered Counts Matrix</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>filtered_counts_matrix <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">&quot;../01_data/02_processed/04_filtered_counts_matrix.rds&quot;</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a>filtered_counts_matrix <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;02_processed&quot;</span>, <span class="st">&quot;04_filtered_counts_matrix.rds&quot;</span>))</span>
 <span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Filtered counts matrix loaded:&quot;</span>, <span class="fu">nrow</span>(filtered_counts_matrix), <span class="st">&quot;genes x&quot;</span>, <span class="fu">ncol</span>(filtered_counts_matrix), <span class="st">&quot;samples</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Filtered counts matrix loaded: 16164 genes x 180 samples</code></pre>
@@ -2517,7 +2517,7 @@ Libraries loaded successfully</code></pre>
 <section id="load-filtered-tumor-subtype-information" class="level3">
 <h3 class="anchored" data-anchor-id="load-filtered-tumor-subtype-information">2.2. Load Filtered Tumor Subtype Information</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>tumor_subtype_info <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">&quot;../01_data/02_processed/05_filtered_tumor_subtype_info.rds&quot;</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a>tumor_subtype_info <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;02_processed&quot;</span>, <span class="st">&quot;05_filtered_tumor_subtype_info.rds&quot;</span>))</span>
 <span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Filtered tumor subtype info loaded:&quot;</span>, <span class="fu">nrow</span>(tumor_subtype_info), <span class="st">&quot;samples</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Filtered tumor subtype info loaded: 180 samples</code></pre>
@@ -2552,14 +2552,14 @@ Libraries loaded successfully</code></pre>
 <span id="cb19-5"><a href="#cb19-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Neftel neoplastic</span></span>
 <span id="cb19-6"><a href="#cb19-6" aria-hidden="true" tabindex="-1"></a><span class="fu">download.file</span>(</span>
 <span id="cb19-7"><a href="#cb19-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">url      =</span> <span class="fu">paste0</span>(base_url, <span class="st">&quot;Neftel_et_al_2019_four_state_neoplastic_markers.rds&quot;</span>),</span>
-<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">destfile =</span> <span class="st">&quot;../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/neftel_neoplastic_markers.rds&quot;</span>,</span>
+<span id="cb19-8"><a href="#cb19-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">destfile =</span> here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;03_deconvolution_references&quot;</span>, <span class="st">&quot;01_neftel_neoplastic&quot;</span>, <span class="st">&quot;neftel_neoplastic_markers.rds&quot;</span>),</span>
 <span id="cb19-9"><a href="#cb19-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">mode     =</span> <span class="st">&quot;wb&quot;</span></span>
 <span id="cb19-10"><a href="#cb19-10" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb19-11"><a href="#cb19-11" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb19-12"><a href="#cb19-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Moreno immune</span></span>
 <span id="cb19-13"><a href="#cb19-13" aria-hidden="true" tabindex="-1"></a><span class="fu">download.file</span>(</span>
 <span id="cb19-14"><a href="#cb19-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">url      =</span> <span class="fu">paste0</span>(base_url, <span class="st">&quot;Moreno_et_al_2022_lvl3_immune_markers.rds&quot;</span>),</span>
-<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">destfile =</span> <span class="st">&quot;../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/moreno_immune_markers.rds&quot;</span>,</span>
+<span id="cb19-15"><a href="#cb19-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">destfile =</span> here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;03_deconvolution_references&quot;</span>, <span class="st">&quot;01_neftel_neoplastic&quot;</span>, <span class="st">&quot;moreno_immune_markers.rds&quot;</span>),</span>
 <span id="cb19-16"><a href="#cb19-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">mode     =</span> <span class="st">&quot;wb&quot;</span></span>
 <span id="cb19-17"><a href="#cb19-17" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb19-18"><a href="#cb19-18" aria-hidden="true" tabindex="-1"></a></span>
@@ -2589,14 +2589,14 @@ Libraries loaded successfully</code></pre>
 <span id="cb25-5"><a href="#cb25-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Moreno neoplastic</span></span>
 <span id="cb25-6"><a href="#cb25-6" aria-hidden="true" tabindex="-1"></a><span class="fu">download.file</span>(</span>
 <span id="cb25-7"><a href="#cb25-7" aria-hidden="true" tabindex="-1"></a>  <span class="at">url      =</span> <span class="fu">paste0</span>(base_url, <span class="st">&quot;Moreno_et_al_2022_lvl3_neoplastic_markers.rds&quot;</span>),</span>
-<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">destfile =</span> <span class="st">&quot;../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_neoplastic_markers.rds&quot;</span>,</span>
+<span id="cb25-8"><a href="#cb25-8" aria-hidden="true" tabindex="-1"></a>  <span class="at">destfile =</span> here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;03_deconvolution_references&quot;</span>, <span class="st">&quot;02_moreno_neoplastic&quot;</span>, <span class="st">&quot;moreno_neoplastic_markers.rds&quot;</span>),</span>
 <span id="cb25-9"><a href="#cb25-9" aria-hidden="true" tabindex="-1"></a>  <span class="at">mode     =</span> <span class="st">&quot;wb&quot;</span></span>
 <span id="cb25-10"><a href="#cb25-10" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb25-11"><a href="#cb25-11" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb25-12"><a href="#cb25-12" aria-hidden="true" tabindex="-1"></a><span class="co"># Moreno immune (same as in primary, but saved separately with Moreno neoplastic)</span></span>
 <span id="cb25-13"><a href="#cb25-13" aria-hidden="true" tabindex="-1"></a><span class="fu">download.file</span>(</span>
 <span id="cb25-14"><a href="#cb25-14" aria-hidden="true" tabindex="-1"></a>  <span class="at">url      =</span> <span class="fu">paste0</span>(base_url, <span class="st">&quot;Moreno_et_al_2022_lvl3_immune_markers.rds&quot;</span>),</span>
-<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">destfile =</span> <span class="st">&quot;../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_immune_markers.rds&quot;</span>,</span>
+<span id="cb25-15"><a href="#cb25-15" aria-hidden="true" tabindex="-1"></a>  <span class="at">destfile =</span> here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;03_deconvolution_references&quot;</span>, <span class="st">&quot;02_moreno_neoplastic&quot;</span>, <span class="st">&quot;moreno_immune_markers.rds&quot;</span>),</span>
 <span id="cb25-16"><a href="#cb25-16" aria-hidden="true" tabindex="-1"></a>  <span class="at">mode     =</span> <span class="st">&quot;wb&quot;</span></span>
 <span id="cb25-17"><a href="#cb25-17" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb25-18"><a href="#cb25-18" aria-hidden="true" tabindex="-1"></a></span>
@@ -2621,12 +2621,12 @@ Libraries loaded successfully</code></pre>
 <h3 class="anchored" data-anchor-id="load-and-inspect-marker-gene-reference-datasets">3.2. Load And Inspect Marker Gene Reference Datasets</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb31"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb31-1"><a href="#cb31-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Primary: Neftel neoplastic + Moreno immune</span></span>
-<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>neftel_neoplastic <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">&quot;../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/neftel_neoplastic_markers.rds&quot;</span>)</span>
-<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>moreno_immune_primary   <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">&quot;../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic/moreno_immune_markers.rds&quot;</span>)</span>
+<span id="cb31-2"><a href="#cb31-2" aria-hidden="true" tabindex="-1"></a>neftel_neoplastic       <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;03_deconvolution_references&quot;</span>, <span class="st">&quot;01_neftel_neoplastic&quot;</span>, <span class="st">&quot;neftel_neoplastic_markers.rds&quot;</span>))</span>
+<span id="cb31-3"><a href="#cb31-3" aria-hidden="true" tabindex="-1"></a>moreno_immune_primary   <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;03_deconvolution_references&quot;</span>, <span class="st">&quot;01_neftel_neoplastic&quot;</span>, <span class="st">&quot;moreno_immune_markers.rds&quot;</span>))</span>
 <span id="cb31-4"><a href="#cb31-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb31-5"><a href="#cb31-5" aria-hidden="true" tabindex="-1"></a><span class="co"># Confirmatory: Moreno neoplastic + Moreno immune</span></span>
-<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>moreno_neoplastic <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">&quot;../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_neoplastic_markers.rds&quot;</span>)</span>
-<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>moreno_immune_confirmatory   <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(<span class="st">&quot;../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic/moreno_immune_markers.rds&quot;</span>)</span>
+<span id="cb31-6"><a href="#cb31-6" aria-hidden="true" tabindex="-1"></a>moreno_neoplastic           <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;03_deconvolution_references&quot;</span>, <span class="st">&quot;02_moreno_neoplastic&quot;</span>, <span class="st">&quot;moreno_neoplastic_markers.rds&quot;</span>))</span>
+<span id="cb31-7"><a href="#cb31-7" aria-hidden="true" tabindex="-1"></a>moreno_immune_confirmatory  <span class="ot">&lt;-</span> <span class="fu">readRDS</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;03_deconvolution_references&quot;</span>, <span class="st">&quot;02_moreno_neoplastic&quot;</span>, <span class="st">&quot;moreno_immune_markers.rds&quot;</span>))</span>
 <span id="cb31-8"><a href="#cb31-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb31-9"><a href="#cb31-9" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb31-10"><a href="#cb31-10" aria-hidden="true" tabindex="-1"></a></span>
@@ -3015,10 +3015,20 @@ Confirmatory cell types retained:</code></pre>
 <span id="cb73-3"><a href="#cb73-3" aria-hidden="true" tabindex="-1"></a>  <span class="fu">wrap_elements</span>(deconv_confirmatory_median_abundance_scores_heatmap)) <span class="sc">+</span></span>
 <span id="cb73-4"><a href="#cb73-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">plot_annotation</span>(</span>
 <span id="cb73-5"><a href="#cb73-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">title =</span> <span class="st">&quot;Deconvolution: Cell Type Abundance by Subtype&quot;</span>,</span>
-<span id="cb73-6"><a href="#cb73-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">theme =</span> <span class="fu">theme</span>(<span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">size =</span> <span class="dv">16</span>, <span class="at">face =</span> <span class="st">&quot;bold&quot;</span>))</span>
-<span id="cb73-7"><a href="#cb73-7" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb73-6"><a href="#cb73-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">theme =</span> <span class="fu">theme</span>(</span>
+<span id="cb73-7"><a href="#cb73-7" aria-hidden="true" tabindex="-1"></a>      <span class="at">plot.title =</span> <span class="fu">element_text</span>(<span class="at">hjust =</span> <span class="fl">0.5</span>, <span class="at">size =</span> <span class="dv">16</span>, <span class="at">face =</span> <span class="st">&quot;bold&quot;</span>),</span>
 <span id="cb73-8"><a href="#cb73-8" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb73-9"><a href="#cb73-9" aria-hidden="true" tabindex="-1"></a>deconv_combined_median_abundance_scores_heatmap</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb73-9"><a href="#cb73-9" aria-hidden="true" tabindex="-1"></a>      <span class="co"># adjust plot margins</span></span>
+<span id="cb73-10"><a href="#cb73-10" aria-hidden="true" tabindex="-1"></a>      <span class="at">plot.margin =</span> <span class="fu">margin</span>(</span>
+<span id="cb73-11"><a href="#cb73-11" aria-hidden="true" tabindex="-1"></a>        <span class="at">t =</span> <span class="fl">5.5</span>,</span>
+<span id="cb73-12"><a href="#cb73-12" aria-hidden="true" tabindex="-1"></a>        <span class="at">r =</span> <span class="fl">5.5</span>,</span>
+<span id="cb73-13"><a href="#cb73-13" aria-hidden="true" tabindex="-1"></a>        <span class="at">b =</span> <span class="fl">5.5</span>,</span>
+<span id="cb73-14"><a href="#cb73-14" aria-hidden="true" tabindex="-1"></a>        <span class="at">l =</span> <span class="fl">5.5</span></span>
+<span id="cb73-15"><a href="#cb73-15" aria-hidden="true" tabindex="-1"></a>      )</span>
+<span id="cb73-16"><a href="#cb73-16" aria-hidden="true" tabindex="-1"></a>    )</span>
+<span id="cb73-17"><a href="#cb73-17" aria-hidden="true" tabindex="-1"></a>  )</span>
+<span id="cb73-18"><a href="#cb73-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb73-19"><a href="#cb73-19" aria-hidden="true" tabindex="-1"></a>deconv_combined_median_abundance_scores_heatmap</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <div>
 <figure class="figure">
@@ -3046,8 +3056,8 @@ Confirmatory cell types retained:</code></pre>
 <h3 class="anchored" data-anchor-id="save-deconvolution-results">4.1. Save Deconvolution Results</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a><span class="co"># save deconvolution result dataframes</span></span>
-<span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(deconv_primary_df,      <span class="st">&quot;../04_results/07_deconvolution/01_primary_deconvolution_results.rds&quot;</span>)</span>
-<span id="cb74-3"><a href="#cb74-3" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(deconv_confirmatory_df, <span class="st">&quot;../04_results/07_deconvolution/02_confirmatory_deconvolution_results.rds&quot;</span>)</span>
+<span id="cb74-2"><a href="#cb74-2" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(deconv_primary_df,      here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;04_results&quot;</span>, <span class="st">&quot;07_deconvolution&quot;</span>, <span class="st">&quot;01_primary_deconvolution_results.rds&quot;</span>))</span>
+<span id="cb74-3"><a href="#cb74-3" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(deconv_confirmatory_df, here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;04_results&quot;</span>, <span class="st">&quot;07_deconvolution&quot;</span>, <span class="st">&quot;02_confirmatory_deconvolution_results.rds&quot;</span>))</span>
 <span id="cb74-4"><a href="#cb74-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb74-5"><a href="#cb74-5" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Deconvolution results saved</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -3059,7 +3069,7 @@ Confirmatory cell types retained:</code></pre>
 <h3 class="anchored" data-anchor-id="save-combined-primary-and-confirmatory-deconvolution-heatmap">4.2. Save Combined Primary And Confirmatory Deconvolution Heatmap</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb76"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb76-1"><a href="#cb76-1" aria-hidden="true" tabindex="-1"></a><span class="fu">png</span>(</span>
-<span id="cb76-2"><a href="#cb76-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../03_figures/07_deconvolution/deconv_combined_median_cell_type_abundance_scores_heatmap.png&quot;</span>,</span>
+<span id="cb76-2"><a href="#cb76-2" aria-hidden="true" tabindex="-1"></a>  here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;03_figures&quot;</span>, <span class="st">&quot;07_deconvolution&quot;</span>, <span class="st">&quot;deconv_combined_median_cell_type_abundance_scores_heatmap.png&quot;</span>),</span>
 <span id="cb76-3"><a href="#cb76-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">width =</span> <span class="dv">16</span>,</span>
 <span id="cb76-4"><a href="#cb76-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">height =</span> <span class="dv">6</span>,</span>
 <span id="cb76-5"><a href="#cb76-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">units =</span> <span class="st">&quot;in&quot;</span>,</span>
@@ -3081,9 +3091,9 @@ Confirmatory cell types retained:</code></pre>
 <section id="perform-sanity-checks" class="level2">
 <h2 class="anchored" data-anchor-id="perform-sanity-checks">5. Perform Sanity Checks</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb80"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb80-1"><a href="#cb80-1" aria-hidden="true" tabindex="-1"></a>primary_results_exists         <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(<span class="st">&quot;../04_results/07_deconvolution/01_primary_deconvolution_results.rds&quot;</span>)</span>
-<span id="cb80-2"><a href="#cb80-2" aria-hidden="true" tabindex="-1"></a>confirmatory_results_exists    <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(<span class="st">&quot;../04_results/07_deconvolution/02_confirmatory_deconvolution_results.rds&quot;</span>)</span>
-<span id="cb80-3"><a href="#cb80-3" aria-hidden="true" tabindex="-1"></a>combined_heatmap_exists        <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(<span class="st">&quot;../03_figures/07_deconvolution/deconv_combined_median_cell_type_abundance_scores_heatmap.png&quot;</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb80"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb80-1"><a href="#cb80-1" aria-hidden="true" tabindex="-1"></a>primary_results_exists         <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;04_results&quot;</span>, <span class="st">&quot;07_deconvolution&quot;</span>, <span class="st">&quot;01_primary_deconvolution_results.rds&quot;</span>))</span>
+<span id="cb80-2"><a href="#cb80-2" aria-hidden="true" tabindex="-1"></a>confirmatory_results_exists    <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;04_results&quot;</span>, <span class="st">&quot;07_deconvolution&quot;</span>, <span class="st">&quot;02_confirmatory_deconvolution_results.rds&quot;</span>))</span>
+<span id="cb80-3"><a href="#cb80-3" aria-hidden="true" tabindex="-1"></a>combined_heatmap_exists        <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;03_figures&quot;</span>, <span class="st">&quot;07_deconvolution&quot;</span>, <span class="st">&quot;deconv_combined_median_cell_type_abundance_scores_heatmap.png&quot;</span>))</span>
 <span id="cb80-4"><a href="#cb80-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb80-5"><a href="#cb80-5" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Primary deconvolution results saved:                                    &quot;</span>, <span class="fu">ifelse</span>(primary_results_exists,      <span class="st">&quot;✓&quot;</span>, <span class="st">&quot;✗&quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">

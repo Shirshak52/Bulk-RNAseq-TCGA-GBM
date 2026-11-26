@@ -6,6 +6,11 @@
 01_data/
 04_results/
 
+# TCGAbiolinks::GDCdownload() artifacts
+MANIFEST.txt
+df.rds
+results.rds
+
 # Quarto render artifacts
 02_notebooks/*_files/
 02_notebooks/*_cache/

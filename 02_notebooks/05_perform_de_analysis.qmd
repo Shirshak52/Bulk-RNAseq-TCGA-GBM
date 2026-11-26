@@ -20,19 +20,19 @@ Perform **Differential Expression (DE) Analysis** on the **filtered** **`unstran
 
 The DE analysis will consider Proneural samples as the basis of comparison for Mesenchymal samples. The steps are as follows:
 
--   **Setup**: **Justify** the choice of **DE analysis approaches** using the **mean-variance plot**, confirming **overdispersion** in the data.
+- **Setup**: **Justify** the choice of **DE analysis approaches** using the **mean-variance plot**, confirming **overdispersion** in the data.
 
--   **DE analyses**: Perform DE analysis with **`DESeq2`** (**primary** approach) as well as **`EdgeR`** (**confirmatory** approach) to create these lists:
+- **DE analyses**: Perform DE analysis with **`DESeq2`** (**primary** approach) as well as **`EdgeR`** (**confirmatory** approach) to create these lists:
 
-    -   Genes **upregulated** in Mesenchymal samples as per **`DESeq2`**
+  - Genes **upregulated** in Mesenchymal samples as per **`DESeq2`**
 
-    -   Genes **downregulated** in Mesenchymal samples as per **`DESeq2`**
+  - Genes **downregulated** in Mesenchymal samples as per **`DESeq2`**
 
-    -   Genes **upregulated** in Mesenchymal samples as per **`EdgeR`**
+  - Genes **upregulated** in Mesenchymal samples as per **`EdgeR`**
 
-    -   Genes **downregulated** in Mesenchymal samples as per **`EdgeR`**
+  - Genes **downregulated** in Mesenchymal samples as per **`EdgeR`**
 
--   **Consensus lists**: **Retain** only those genes that are considered **upregulated by both approaches**, as well as those that are considered **downregulated by both approaches**. These are the most reliable lists to be used in pathway enrichment analysis.
+- **Consensus lists**: **Retain** only those genes that are considered **upregulated by both approaches**, as well as those that are considered **downregulated by both approaches**. These are the most reliable lists to be used in pathway enrichment analysis.
 
 **NOTE**: **All genes** common in each pair of **up/downregulated lists** will be retained as the consensus lists, not just the top `n` genes.
 
@@ -71,10 +71,12 @@ cat("ggvenn version:            ", as.character(packageVersion("ggvenn")), "\n")
 #| label: load_filtered_counts_matrix
 
 
-filtered_counts_matrix <- readRDS("../01_data/02_processed/04_filtered_counts_matrix.rds")
+filtered_counts_matrix <- readRDS(here::here("01_data", "02_processed", "04_filtered_counts_matrix.rds"))
 cat("Filtered counts matrix loaded:", nrow(filtered_counts_matrix), "genes x", ncol(filtered_counts_matrix), "samples\n\n")
 
-filtered_counts_matrix[1:3, 1:3]
+filtered_counts_matrix[1:3, 1:3] %>%
+    as.data.frame() %>%
+    knitr::kable()
 ```
 
 ### 2.2. Load Filtered Tumor Subtype Information
@@ -83,7 +85,7 @@ filtered_counts_matrix[1:3, 1:3]
 #| label: load_filtered_tumor_subtype_info
 
 
-tumor_subtype_info <- readRDS("../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
+tumor_subtype_info <- readRDS(here::here("01_data", "02_processed", "05_filtered_tumor_subtype_info.rds"))
 
 cat("Filtered tumor subtype info loaded:", nrow(tumor_subtype_info), "samples\n")
 tumor_subtype_info %>%
@@ -99,9 +101,11 @@ tumor_subtype_info %>%
 #| label: load_filtered_gene_metadata
 
 
-gene_metadata <- readRDS("../01_data/02_processed/06_filtered_gene_metadata.rds")
+gene_metadata <- readRDS(here::here("01_data", "02_processed", "06_filtered_gene_metadata.rds"))
 cat("Filtered gene metadata loaded:", nrow(gene_metadata), "genes\n")
-gene_metadata[1:5, 1:8] %>% as.data.frame() %>% knitr::kable()
+gene_metadata[1:5, 1:8] %>%
+    as.data.frame() %>%
+    knitr::kable()
 ```
 
 ## 3. Perform DE Analysis
@@ -132,10 +136,10 @@ mv_plot <- ggplot(mv_plot_data, mv_plot_mapping) +  # means and variances
            
              # point plot
              geom_point(
-             alpha = 0.1,
-             size = 0.5,
-             colour = "steelblue"
-           ) +
+              alpha = 0.1,
+              size = 0.5,
+              colour = "steelblue"
+             ) +
   
            # variance=mean line (poisson expectation)
            geom_abline(
@@ -151,7 +155,18 @@ mv_plot <- ggplot(mv_plot_data, mv_plot_mapping) +  # means and variances
   
            # themes
            theme_minimal() +
-           theme(plot.title = element_text(hjust = 0.5))
+           theme(
+            plot.title = element_text(hjust = 0.5),
+
+            # adjust plot margins
+            plot.margin = margin(
+              t = 5.5,
+              r = 5.5,
+              b = 5.5,
+              l = 5.5
+            )
+            
+           )
 
 mv_plot
 ```
@@ -194,7 +209,7 @@ By default, `DESeq2` always runs the **Wald test**, i.e. it calculates the **Wal
 
 Wald Statistic is simply the **standardized `log2FC`,** scaled by the **standard error of `log2FC`.** That is:
 
--   **`Wald statistic = log2FC/lfcSE`**
+- **`Wald statistic = log2FC/lfcSE`**
 
 It acts as a **signal-to-noise ratio**, where the **estimated `log2FC`** represents the **biological signal** of **difference in expression levels** and the **`log2FC` standard error (i.e. `lfcSE`)** represents the **background noise**.
 
@@ -353,7 +368,17 @@ deseq2_volcano_plot <- ggplot(deseq2_volcano_data, deseq2_volcano_mapping) +  # 
                        # custom adjustments
                        theme_minimal() +
                        coord_cartesian(xlim = c(-7, 7)) +
-                       theme(plot.title = element_text(hjust = 0.5))
+                       theme(
+                        plot.title = element_text(hjust = 0.5),
+
+                        # adjust plot margins
+                        plot.margin = margin(
+                          t = 5.5,
+                          r = 5.5,
+                          b = 5.5,
+                          l = 5.5
+                        )
+                      )
 
 deseq2_volcano_plot
 ```
@@ -392,13 +417,13 @@ By default, `EdgeR` always runs the **F-test**, i.e. it calculates the **F-stati
 
 Mathematically, the F-statistic is as follows:
 
--   **`F-statistic = (Likelihood Ratio Deviance) / (Quasi-Likelihood Dispersion)`**
+- **`F-statistic = (Likelihood Ratio Deviance) / (Quasi-Likelihood Dispersion)`**
 
 Here:
 
--   **Likelihood Ratio Deviance** quantifies how much better the data is explained when **PN and ME are allowed to have different average expression values**, compared to **forcing** both subtypes to share **one single average**. A **large deviance** means **treating them separately** explains the observed expression values **much better** than treating them as one group.
+- **Likelihood Ratio Deviance** quantifies how much better the data is explained when **PN and ME are allowed to have different average expression values**, compared to **forcing** both subtypes to share **one single average**. A **large deviance** means **treating them separately** explains the observed expression values **much better** than treating them as one group.
 
--   Quasi-Likelihood Dispersion is the **gene's estimated variability beyond what the negative binomial distribution alone predicts**. It is essentially how noisy this specific gene's measurements are.
+- Quasi-Likelihood Dispersion is the **gene's estimated variability beyond what the negative binomial distribution alone predicts**. It is essentially how noisy this specific gene's measurements are.
 
 So, the F-statistic acts as a **signal-to-noise ratio**, where the Likelihood Ratio Deviance represents **how much PN and ME genuinely differ** (the **signal**), and the Quasi-Likelihood Dispersion represents the **gene's inherent noisiness.**
 
@@ -541,7 +566,17 @@ edger_volcano_plot <- ggplot(edger_volcano_data, edger_volcano_mapping) +  # dat
                       # custom adjustments
                       theme_minimal() +
                       coord_cartesian(xlim = c(-7, 7)) +
-                      theme(plot.title = element_text(hjust = 0.5))
+                      theme(
+                        plot.title = element_text(hjust = 0.5),
+
+                        # adjust plot margins
+                        plot.margin = margin(
+                          t = 5.5,
+                          r = 5.5,
+                          b = 5.5,
+                          l = 5.5
+                        )
+                      )
 
 edger_volcano_plot
 ```
@@ -574,9 +609,9 @@ combined_volcano_plot
 
 The volcano plots show **DESeq2 (top) and EdgeR (bottom)** results side by side on matching x-axis scales.
 
--   Genes **upregulated in ME (salmon, right)** include TRIP6, CARD16, ANXA1, GSDMD, FCGR2B, HFE: **immune/inflammatory genes** consistent with the **Mesenchymal subtype**.
+- Genes **upregulated in ME (salmon, right)** include TRIP6, CARD16, ANXA1, GSDMD, FCGR2B, HFE: **immune/inflammatory genes** consistent with the **Mesenchymal subtype**.
 
--   Genes **downregulated in ME (blue, left)** include B4GALNT1, FREM3, FAM117B, RBP3: **neural/brain-associated genes** consistent with the **Proneural subtype**.
+- Genes **downregulated in ME (blue, left)** include B4GALNT1, FREM3, FAM117B, RBP3: **neural/brain-associated genes** consistent with the **Proneural subtype**.
 
 The **substantial agreement** in labeled genes **between the two tools**, for instance genes like B4GALNT1, FREM3, RBP3, TRIP6, CARD16, HFE, GSDMD, C1RL, DRAM1 appearing as **top hits in both**, previews the high consensus overlap quantified **below in the venn diagrams.**
 
@@ -623,7 +658,13 @@ venn_combined <- (venn_up / venn_down) +
                                             hjust = 0.5,
                                             size = 16,
                                             face = "bold"
-                                          )
+                                          ),
+                             plot.margin = margin(
+                                              t = 5.5,
+                                              r = 5.5,
+                                              b = 5.5,
+                                              l = 5.5
+                                            )
                            )
                  )
 
@@ -632,9 +673,9 @@ venn_combined
 
 The Venn diagrams confirm **exceptionally high agreement between DESeq2 and EdgeR**.
 
--   For **upregulated genes, 94.8% (1528) of genes are called by both tools,** with only **1.6% (25)** unique to **DESeq2** and **3.7% (59)** unique to **EdgeR**.
+- For **upregulated genes, 94.8% (1528) of genes are called by both tools,** with only **1.6% (25)** unique to **DESeq2** and **3.7% (59)** unique to **EdgeR**.
 
--   For **downregulated genes, 94.6% (1130) overlap,** with **2.8% (33)** unique to **DESeq2** and **2.7% (32)** unique to **EdgeR**.
+- For **downregulated genes, 94.6% (1130) overlap,** with **2.8% (33)** unique to **DESeq2** and **2.7% (32)** unique to **EdgeR**.
 
 This **near-complete consensus** across two independently developed statistical methods **strongly validates the reliability of the DE gene lists**.
 
@@ -699,9 +740,9 @@ wrap_elements(de_heatmap)
 
 The heatmap shows **expression of the top 50 consensus DE genes** **(25 most upregulated, 25 most downregulated in ME by log2FC)** across **all 180 samples**, **z-scored per gene** for visual comparability.
 
--   The **upper block of genes (downregulated in ME**: **neural/synaptic genes** such as NEUROD4, LHX1, LHX5) shows **high expression** concentrated in the **PN-annotated samples**.
+- The **upper block of genes (downregulated in ME**: **neural/synaptic genes** such as NEUROD4, LHX1, LHX5) shows **high expression** concentrated in the **PN-annotated samples**.
 
--   The **lower block of genes (upregulated in ME**: **chemokine/inflammatory genes** such as CXCL13, CXCL14, CHI3L1, SAA1/2) shows **high expression** concentrated in **ME-annotated samples**.
+- The **lower block of genes (upregulated in ME**: **chemokine/inflammatory genes** such as CXCL13, CXCL14, CHI3L1, SAA1/2) shows **high expression** concentrated in **ME-annotated samples**.
 
 This confirms the consensus DE genes **meaningfully separate the two subtypes at the individual sample level,** consistent with the volcano plot and pathway enrichment findings.
 
@@ -714,8 +755,8 @@ This confirms the consensus DE genes **meaningfully separate the two subtypes at
 
 
 # save full unfiltered results for GSEA
-saveRDS(as.data.frame(deseq2_results), "../04_results/05_de_analysis/01_deseq2_full_results.rds")
-saveRDS(edger_results_table,           "../04_results/05_de_analysis/02_edger_full_results.rds")
+saveRDS(as.data.frame(deseq2_results), here::here("04_results", "05_de_analysis", "01_deseq2_full_results.rds"))
+saveRDS(edger_results_table,           here::here("04_results", "05_de_analysis", "02_edger_full_results.rds"))
 
 cat("Saved consensus gene lists\n")
 cat("Saved full DE results\n")
@@ -729,7 +770,7 @@ cat("Saved full DE results\n")
 
 # combined volcano plots
 ggsave(
-  "../03_figures/05_de_analysis/01_combined_volcano_plots.png",
+  here::here("03_figures", "05_de_analysis", "01_combined_volcano_plots.png"),
   plot = combined_volcano_plot,
   width = 10,
   height = 10,
@@ -738,7 +779,7 @@ ggsave(
 
 # DE gene list venn diagram
 ggsave(
-  "../03_figures/05_de_analysis/02_venn_diagram.png",
+  here::here("03_figures", "05_de_analysis", "02_venn_diagram.png"),
   plot = venn_combined,
   width = 10,
   height = 10,
@@ -746,7 +787,7 @@ ggsave(
 )
 
 png(
-  "../03_figures/05_de_analysis/03_de_heatmap.png",
+  here::here("03_figures", "05_de_analysis", "03_de_heatmap.png"),
   width = 10,
   height = 8,
   units = "in",
@@ -765,14 +806,14 @@ cat("Saved DE plots\n")
 #| label: perform_sanity_checks
 
 
-deseq2_full_exists     <- file.exists("../04_results/05_de_analysis/01_deseq2_full_results.rds")
-edger_full_exists      <- file.exists("../04_results/05_de_analysis/02_edger_full_results.rds")
+deseq2_full_exists     <- file.exists(here::here("04_results", "05_de_analysis", "01_deseq2_full_results.rds"))
+edger_full_exists      <- file.exists(here::here("04_results", "05_de_analysis", "02_edger_full_results.rds"))
 
 
 
-combined_volcano_exists <- file.exists("../03_figures/05_de_analysis/01_combined_volcano_plots.png")
-venn_exists <- file.exists("../03_figures/05_de_analysis/02_venn_diagram.png")
-de_heatmap_exists <- file.exists("../03_figures/05_de_analysis/03_de_heatmap.png")
+combined_volcano_exists <- file.exists(here::here("03_figures", "05_de_analysis", "01_combined_volcano_plots.png"))
+venn_exists <- file.exists(here::here("03_figures", "05_de_analysis", "02_venn_diagram.png"))
+de_heatmap_exists <- file.exists(here::here("03_figures", "05_de_analysis", "03_de_heatmap.png"))
 
 
 

@@ -20,21 +20,21 @@ Perform **Quality Control (QC) measures** on the **`unstranded` raw counts matri
 
 The QC steps therefore are applied to the **subset of only the coding genes of Proneural (PN) and Mesenchymal (ME) tumors**. Hence, the QC steps are:
 
--   only **retain** the samples of the **Proneural (PN) and Mesenchymal (ME)** tumor subtypes
+- only **retain** the samples of the **Proneural (PN) and Mesenchymal (ME)** tumor subtypes
 
--   only **retain protein-coding genes**
+- only **retain protein-coding genes**
 
 Then:
 
--   **QC genes**: Remove **lowly expressed genes.** A gene is retained only if it has a count that is **proportionally enough** in at least **X% of the smaller group's samples**.
+- **QC genes**: Remove **lowly expressed genes.** A gene is retained only if it has a count that is **proportionally enough** in at least **X% of the smaller group's samples**.
 
--   **QC samples**:
+- **QC samples**:
 
-    -   Remove samples with **low library sizes**. Some samples may have been **poorly sequenced**, resulting in **artificially low counts** that do not reliably represent the true expression levels of their genes.
+  - Remove samples with **low library sizes**. Some samples may have been **poorly sequenced**, resulting in **artificially low counts** that do not reliably represent the true expression levels of their genes.
 
-    -   Remove samples with **too few genes with non-zero counts**.
+  - Remove samples with **too few genes with non-zero counts**.
 
--   **PCA plot**: **Sanity check** the data with a PCA plot to diagnose/resolve any **batch effects.**
+- **PCA plot**: **Sanity check** the data with a PCA plot to diagnose/resolve any **batch effects.**
 
 and then save the insights and outputs.
 
@@ -61,12 +61,11 @@ Load the `unstranded` raw counts matrix.
 ```{r}
 #| label: load_raw_counts_matrix
 
-
-raw_counts_matrix <- readRDS("../01_data/02_processed/01_raw_counts_matrix.rds")
+raw_counts_matrix <- readRDS(here::here("01_data", "02_processed", "01_raw_counts_matrix.rds"))
 cat("Raw counts matrix loaded:", nrow(raw_counts_matrix), "genes x", ncol(raw_counts_matrix), "samples\n")
 
 cat("\n\nFirst few rows (genes) and columns (samples):\n\n")
-raw_counts_matrix[1:3, 1:3]
+raw_counts_matrix[1:3, 1:3] %>% as.data.frame() %>% knitr::kable()
 ```
 
 ### 2.2. Load Tumor Subtype Information
@@ -75,7 +74,7 @@ raw_counts_matrix[1:3, 1:3]
 #| label: load_tumor_subtype_info
 
 
-tumor_subtype_info <- readRDS("../01_data/02_processed/02_tumor_subtype_info.rds")
+tumor_subtype_info <- readRDS(here::here("01_data", "02_processed", "02_tumor_subtype_info.rds"))
 cat("Tumor subtype info loaded:", nrow(tumor_subtype_info), "samples\n")
 
 cat("\n\nFirst few rows (samples) and columns (tumor subtype info):\n\n")
@@ -88,7 +87,7 @@ tumor_subtype_info[1:3, 1:5] %>% as.data.frame() %>% knitr::kable()
 #| label: load_gene_metadata
 
 
-gene_metadata <- readRDS("../01_data/02_processed/03_gene_metadata.rds")
+gene_metadata <- readRDS(here::here("01_data", "02_processed", "03_gene_metadata.rds"))
 cat("Gene metadata loaded:", nrow(gene_metadata), "genes\n")
 
 cat("\n\nFirst few rows (genes) and columns (gene metadata):\n\n")
@@ -152,7 +151,13 @@ pre_subtype_plot <- ggplot(pre_subtype_data, pre_subtype_mapping) +          # d
                     theme(
                       plot.title = element_text(hjust = 0.5),                # center the title
                       axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
-                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                      axis.title.y = element_text(margin = margin(r = 10)),  # add right margin to y-axis label
+                      plot.margin = margin(                                  # adjust plot margins
+                        t = 5.5,
+                        r = 5.5,
+                        b = 5.5,
+                        l = 5.5
+                      )
                     )
 
 # show plot
@@ -205,7 +210,13 @@ pre_biotype_plot <- ggplot(pre_biotype_data, pre_biotype_mapping) +          # d
                     theme(
                       plot.title = element_text(hjust = 0.5),                # center the title
                       axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
-                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                      axis.title.y = element_text(margin = margin(r = 10)),  # add right margin to y-axis label
+                      plot.margin = margin(                                  # adjust plot margins
+                        t = 5.5,
+                        r = 5.5,
+                        b = 5.5,
+                        l = 5.5
+                      )
                     )
 
 # show plot
@@ -254,7 +265,13 @@ pre_libsize_plot <- ggplot(pre_libsize_data, pre_libsize_mapping) +          # d
                     theme(
                       plot.title = element_text(hjust = 0.5),                # center the title
                       axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
-                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                      axis.title.y = element_text(margin = margin(r = 10)),  # add right margin to y-axis label
+                      plot.margin = margin(                                  # adjust plot margins
+                        t = 5.5,
+                        r = 12.5,
+                        b = 5.5,
+                        l = 5.5
+                      )
                     )
 
 # show plot
@@ -306,7 +323,15 @@ pre_genedet_plot <- ggplot(pre_genedet_data, pre_genedet_mapping) +  # data
                       axis.title.x = element_text(margin = margin(t = 10)),
 
                       # add right margin to y-axis label
-                      axis.title.y = element_text(margin = margin(r = 10))
+                      axis.title.y = element_text(margin = margin(r = 10)),
+
+                      # adjust plot margins
+                      plot.margin = margin(
+                        t = 5.5,
+                        r = 5.5,
+                        b = 5.5,
+                        l = 5.5
+                      )
                     )
 
 # show plot
@@ -357,7 +382,15 @@ pre_exprdens_plot <- ggplot(pre_exprdens_data, pre_exprdens_mapping) +  # data
                       axis.title.x = element_text(margin = margin(t = 10)),
 
                       # add right margin to y-axis label
-                      axis.title.y = element_text(margin = margin(r = 10))
+                      axis.title.y = element_text(margin = margin(r = 10)),
+
+                      # adjust plot margins
+                      plot.margin = margin(
+                        t = 5.5,
+                        r = 5.5,
+                        b = 5.5,
+                        l = 5.5
+                      )
                     )
 
 # show plot
@@ -382,9 +415,17 @@ plot_annotation(
   title = "Sample-Level Pre-QC Plots",
   theme = theme(
             plot.title = element_text(
-              hjust = 0.5,
+              hjust = 0.540,
               size = 16,
               face = "bold"
+            ),
+
+            # adjust plot margins
+            plot.margin = margin(
+              t = 5.5,
+              r = 25.5,
+              b = 5.5,
+              l = 5.5
             )
           )
 )
@@ -411,6 +452,14 @@ plot_annotation(
               hjust = 0.5,
               size = 16,
               face = "bold"
+            ),
+
+            # adjust plot margins
+            plot.margin = margin(
+              t = 5.5,
+              r = 5.5,
+              b = 5.5,
+              l = 5.5
             )
           )
 )
@@ -485,7 +534,6 @@ Genes are **retained** only if they have **counts at least CPM \> 1 (industry st
 ```{r}
 #| label: cpm_normalize_raw_counts_matrix
 
-
 cpm_matrix <- sweep(
                 raw_counts_matrix,                 # take raw counts matrix
                 2,                                 # go thru cols (instead of rows)
@@ -495,14 +543,13 @@ cpm_matrix <- sweep(
 
 cat("CPM matrix dimensions:", nrow(cpm_matrix), "genes x", ncol(cpm_matrix), "samples\n")
 cat("\n\nFirst few rows (genes) and columns (samples):\n\n")
-cpm_matrix[1:3, 1:3]  # show row 1 to 3, column 1 to 3
+cpm_matrix[1:3, 1:3] %>% as.data.frame() %>% knitr::kable()  # show row 1 to 3, column 1 to 3
 ```
 
 #### 4.3.2. Filter Lowly Expressed Genes
 
 ```{r}
 #| label: filter_lowly_expressed_genes
-
 
 # Threshold: CPM > 1 in at least 20% of Proneural samples (smaller group)
 # The % is iteratively adjusted according to post-QC details
@@ -518,7 +565,7 @@ cat("Min samples threshold (20%):", min_samples, "\n")
 cat("Genes after expression filter:", nrow(raw_counts_matrix), "\n")
 
 cat("\n\nFirst few rows (genes) and columns (samples) after filter:\n\n")
-raw_counts_matrix[1:3, 1:3]  # show row 1 to 3, column 1 to 3
+raw_counts_matrix[1:3, 1:3] %>% as.data.frame() %>% knitr::kable()  # show row 1 to 3, column 1 to 3
 ```
 
 ### 4.4. QC Samples
@@ -674,7 +721,13 @@ post_subtype_plot <- ggplot(post_subtype_data, post_subtype_mapping) +       # d
                     theme(
                       plot.title = element_text(hjust = 0.5),                # center the title
                       axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
-                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                      axis.title.y = element_text(margin = margin(r = 10)),  # add right margin to y-axis label
+                      plot.margin = margin(                                  # adjust plot margins
+                        t = 5.5,
+                        r = 5.5,
+                        b = 5.5,
+                        l = 5.5
+                      )
                     )
 
 # show plot
@@ -727,7 +780,13 @@ post_biotype_plot <- ggplot(post_biotype_data, post_biotype_mapping) +       # d
                     theme(
                       plot.title = element_text(hjust = 0.5),                # center the title
                       axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
-                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                      axis.title.y = element_text(margin = margin(r = 10)),  # add right margin to y-axis label
+                      plot.margin = margin(                                  # adjust plot margins
+                        t = 5.5,
+                        r = 5.5,
+                        b = 5.5,
+                        l = 5.5
+                      )
                     )
 
 # show plot
@@ -776,7 +835,13 @@ post_libsize_plot <- ggplot(post_libsize_data, post_libsize_mapping) +       # d
                     theme(
                       plot.title = element_text(hjust = 0.5),                # center the title
                       axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
-                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                      axis.title.y = element_text(margin = margin(r = 10)),  # add right margin to y-axis label
+                      plot.margin = margin(                                  # adjust plot margins
+                        t = 5.5,
+                        r = 5.5,
+                        b = 5.5,
+                        l = 5.5
+                      )
                     )
 
 # show plot
@@ -820,7 +885,13 @@ post_genedet_plot <- ggplot(post_genedet_data, post_genedet_mapping) +       # d
                     theme(
                       plot.title = element_text(hjust = 0.5),                # center the title
                       axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
-                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                      axis.title.y = element_text(margin = margin(r = 10)),  # add right margin to y-axis label
+                      plot.margin = margin(                                  # adjust plot margins
+                        t = 5.5,
+                        r = 5.5,
+                        b = 5.5,
+                        l = 5.5
+                      )
                     )
 
 # show plot
@@ -866,7 +937,13 @@ post_exprdens_plot <- ggplot(post_exprdens_data, post_exprdens_mapping) +    # d
                      theme(
                       plot.title = element_text(hjust = 0.5),                # center the title
                       axis.title.x = element_text(margin = margin(t = 10)),  # add top margin to x-axis label
-                      axis.title.y = element_text(margin = margin(r = 10))   # add right margin to y-axis label
+                      axis.title.y = element_text(margin = margin(r = 10)),  # add right margin to y-axis label
+                      plot.margin = margin(                                  # adjust plot margins
+                        t = 5.5,
+                        r = 5.5,
+                        b = 5.5,
+                        l = 5.5
+                      )
                     )
 
 # show plot
@@ -891,9 +968,17 @@ plot_annotation(
   title = "Sample-Level Post-QC Plots",
   theme = theme(
             plot.title = element_text(
-              hjust = 0.5,
+              hjust = 0.540,
               size = 16,
               face = "bold"
+            ),
+
+            # adjust plot margins
+            plot.margin = margin(
+              t = 5.5,
+              r = 25.5,
+              b = 5.5,
+              l = 5.5
             )
           )
 )
@@ -920,6 +1005,14 @@ plot_annotation(
               hjust = 0.5,
               size = 16,
               face = "bold"
+            ),
+
+            # adjust plot margins
+            plot.margin = margin(
+              t = 5.5,
+              r = 5.5,
+              b = 5.5,
+              l = 5.5
             )
           )
 )
@@ -937,7 +1030,7 @@ gene_level_post_qc_plots
 #| label: save_filtered_counts_matrix
 
 
-saveRDS(raw_counts_matrix, "../01_data/02_processed/04_filtered_counts_matrix.rds")
+saveRDS(raw_counts_matrix, here::here("01_data", "02_processed", "04_filtered_counts_matrix.rds"))
 cat("Saved: 04_filtered_counts_matrix.rds\n")
 cat("Dimensions:", nrow(raw_counts_matrix), "genes x", ncol(raw_counts_matrix), "samples\n")
 ```
@@ -948,7 +1041,7 @@ cat("Dimensions:", nrow(raw_counts_matrix), "genes x", ncol(raw_counts_matrix), 
 #| label: save_filtered_tumor_subtype_info
 
 
-saveRDS(tumor_subtype_info, "../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
+saveRDS(tumor_subtype_info, here::here("01_data", "02_processed", "05_filtered_tumor_subtype_info.rds"))
 cat("Saved: 05_filtered_tumor_subtype_info.rds\n")
 cat("Samples remaining:", nrow(tumor_subtype_info), "\n")
 ```
@@ -959,7 +1052,7 @@ cat("Samples remaining:", nrow(tumor_subtype_info), "\n")
 #| label: save_filtered_gene_metadata
 
 
-saveRDS(gene_metadata, "../01_data/02_processed/06_filtered_gene_metadata.rds")
+saveRDS(gene_metadata, here::here("01_data", "02_processed", "06_filtered_gene_metadata.rds"))
 cat("Saved: 06_filtered_gene_metadata.rds\n")
 cat("Genes remaining:", nrow(gene_metadata), "\n")
 ```
@@ -972,7 +1065,7 @@ cat("Genes remaining:", nrow(gene_metadata), "\n")
 
 # sample-level pre-qc plots
 ggsave(
-  "../03_figures/03_qc/01_sample_level_pre_qc_plots.png",
+  here::here("03_figures", "03_qc", "01_sample_level_pre_qc_plots.png"),
   plot = sample_level_pre_qc_plots,
   width = 10,
   height = 15,
@@ -982,7 +1075,7 @@ ggsave(
 
 # gene-level pre-qc plots
 ggsave(
-  "../03_figures/03_qc/02_gene_level_pre_qc_plots.png",
+  here::here("03_figures", "03_qc", "02_gene_level_pre_qc_plots.png"),
   plot = gene_level_pre_qc_plots,
   width = 10,
   height = 15,
@@ -992,7 +1085,7 @@ ggsave(
 
 # sample-level post-qc plots
 ggsave(
-  "../03_figures/03_qc/03_sample_level_post_qc_plots.png",
+  here::here("03_figures", "03_qc", "03_sample_level_post_qc_plots.png"),
   plot = sample_level_post_qc_plots,
   width = 10,
   height = 15,
@@ -1002,7 +1095,7 @@ ggsave(
 
 # gene-level post-qc plots
 ggsave(
-  "../03_figures/03_qc/04_gene_level_post_qc_plots.png",
+  here::here("03_figures", "03_qc", "04_gene_level_post_qc_plots.png"),
   plot = gene_level_post_qc_plots,
   width = 10,
   height = 15,
@@ -1019,18 +1112,18 @@ cat("Saved 4 QC plot files\n")
 #| label: perform_sanity_checks
 
 # filtered data
-filtered_counts_exists   <- file.exists("../01_data/02_processed/04_filtered_counts_matrix.rds")
-filtered_subtype_exists  <- file.exists("../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
-filtered_gene_exists     <- file.exists("../01_data/02_processed/06_filtered_gene_metadata.rds")
+filtered_counts_exists   <- file.exists(here::here("01_data", "02_processed", "04_filtered_counts_matrix.rds"))
+filtered_subtype_exists  <- file.exists(here::here("01_data", "02_processed", "05_filtered_tumor_subtype_info.rds"))
+filtered_gene_exists     <- file.exists(here::here("01_data", "02_processed", "06_filtered_gene_metadata.rds"))
 
 
 
 # combined qc plots
-sample_level_pre_qc_plots_exists   <- file.exists("../03_figures/03_qc/01_sample_level_pre_qc_plots.png")
-gene_level_pre_qc_plots_exists     <- file.exists("../03_figures/03_qc/02_gene_level_pre_qc_plots.png")
+sample_level_pre_qc_plots_exists   <- file.exists(here::here("03_figures", "03_qc", "01_sample_level_pre_qc_plots.png"))
+gene_level_pre_qc_plots_exists     <- file.exists(here::here("03_figures", "03_qc", "02_gene_level_pre_qc_plots.png"))
 
-sample_level_post_qc_plots_exists  <- file.exists("../03_figures/03_qc/03_sample_level_post_qc_plots.png")
-gene_level_post_qc_plots_exists    <- file.exists("../03_figures/03_qc/04_gene_level_post_qc_plots.png")
+sample_level_post_qc_plots_exists  <- file.exists(here::here("03_figures", "03_qc", "03_sample_level_post_qc_plots.png"))
+gene_level_post_qc_plots_exists    <- file.exists(here::here("03_figures", "03_qc", "04_gene_level_post_qc_plots.png"))
 
 
 

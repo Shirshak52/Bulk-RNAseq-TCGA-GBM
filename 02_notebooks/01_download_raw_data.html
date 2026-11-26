@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Shirshak Aryal">
-<meta name="dcterms.date" content="2026-07-03">
+<meta name="dcterms.date" content="2026-11-25">
 
 <title>Notebook 01: Download Raw Data</title>
 <style>
@@ -2402,7 +2402,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">July 3, 2026</p>
+      <p class="date">November 25, 2026</p>
     </div>
   </div>
   
@@ -2482,11 +2482,11 @@ Query results (first 5 columns shown horizontally for visual clarity):</code></p
 <div class="cell-output cell-output-stdout">
 <pre><code>Rows: 391
 Columns: 5
-$ id          &lt;chr&gt; &quot;d4649bc7-09d2-4d90-bafd-0bec72429b00&quot;, &quot;77c261f0-384c-490…
+$ id          &lt;chr&gt; &quot;20db3a49-ca35-4562-bc96-7e98c381830f&quot;, &quot;d6e60bb5-179c-4fb…
 $ data_format &lt;chr&gt; &quot;TSV&quot;, &quot;TSV&quot;, &quot;TSV&quot;, &quot;TSV&quot;, &quot;TSV&quot;, &quot;TSV&quot;, &quot;TSV&quot;, &quot;TSV&quot;, &quot;T…
-$ cases       &lt;chr&gt; &quot;TCGA-06-6390-01A-11R-A96S-41&quot;, &quot;TCGA-06-5411-01A-01R-1849…
+$ cases       &lt;chr&gt; &quot;TCGA-32-5222-01A-01R-1850-01&quot;, &quot;TCGA-12-3646-01A-01R-A96T…
 $ access      &lt;chr&gt; &quot;open&quot;, &quot;open&quot;, &quot;open&quot;, &quot;open&quot;, &quot;open&quot;, &quot;open&quot;, &quot;open&quot;, &quot;o…
-$ file_name   &lt;chr&gt; &quot;1ccc2b22-7f6c-4973-a6fa-f2c4d6be6dba.rna_seq.augmented_st…</code></pre>
+$ file_name   &lt;chr&gt; &quot;1a61593f-909e-46f4-8cfa-9e23bc050033.rna_seq.augmented_st…</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Polished tabular view of key columns</span></span>
 <span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>results <span class="sc">%&gt;%</span></span>
@@ -2514,74 +2514,74 @@ $ file_name   &lt;chr&gt; &quot;1ccc2b22-7f6c-4973-a6fa-f2c4d6be6dba.rna_seq.aug
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: left;">TCGA-06-6390-01A-11R-A96S-41</td>
+<td style="text-align: left;">TCGA-32-5222-01A-01R-1850-01</td>
 <td style="text-align: left;">Primary Tumor</td>
 <td style="text-align: left;">TSV</td>
 <td style="text-align: left;">open</td>
-<td style="text-align: right;">4235696</td>
+<td style="text-align: right;">4244005</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">TCGA-06-5411-01A-01R-1849-01</td>
+<td style="text-align: left;">TCGA-12-3646-01A-01R-A96T-41</td>
 <td style="text-align: left;">Primary Tumor</td>
 <td style="text-align: left;">TSV</td>
 <td style="text-align: left;">open</td>
-<td style="text-align: right;">4257560</td>
+<td style="text-align: right;">4233853</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">TCGA-06-5411-01A-01R-A96S-41</td>
+<td style="text-align: left;">TCGA-12-0670-01B-01R-A96S-41</td>
 <td style="text-align: left;">Primary Tumor</td>
 <td style="text-align: left;">TSV</td>
 <td style="text-align: left;">open</td>
-<td style="text-align: right;">4230271</td>
+<td style="text-align: right;">4222362</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">TCGA-12-3648-01A-01R-A96T-41</td>
+<td style="text-align: left;">TCGA-19-2629-01A-01R-A96U-41</td>
 <td style="text-align: left;">Primary Tumor</td>
 <td style="text-align: left;">TSV</td>
 <td style="text-align: left;">open</td>
-<td style="text-align: right;">4219473</td>
+<td style="text-align: right;">4234685</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">TCGA-06-A7TK-01A-21R-A96S-41</td>
+<td style="text-align: left;">TCGA-06-0743-01A-01R-1849-01</td>
 <td style="text-align: left;">Primary Tumor</td>
 <td style="text-align: left;">TSV</td>
 <td style="text-align: left;">open</td>
-<td style="text-align: right;">4242921</td>
+<td style="text-align: right;">4246326</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">TCGA-19-5959-01A-11R-A96U-41</td>
+<td style="text-align: left;">TCGA-27-1832-01A-01R-1850-01</td>
 <td style="text-align: left;">Primary Tumor</td>
 <td style="text-align: left;">TSV</td>
 <td style="text-align: left;">open</td>
-<td style="text-align: right;">4245745</td>
+<td style="text-align: right;">4253007</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">TCGA-06-0166-01A-01R-A96R-41</td>
+<td style="text-align: left;">TCGA-19-A60I-01A-12R-A96U-41</td>
 <td style="text-align: left;">Primary Tumor</td>
 <td style="text-align: left;">TSV</td>
 <td style="text-align: left;">open</td>
-<td style="text-align: right;">4237341</td>
+<td style="text-align: right;">4243156</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">TCGA-06-5859-01A-01R-1849-01</td>
+<td style="text-align: left;">TCGA-06-0749-01A-01R-1849-01</td>
 <td style="text-align: left;">Primary Tumor</td>
 <td style="text-align: left;">TSV</td>
 <td style="text-align: left;">open</td>
-<td style="text-align: right;">4249092</td>
+<td style="text-align: right;">4244154</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">TCGA-06-5859-01A-01R-A96S-41</td>
+<td style="text-align: left;">TCGA-14-1825-01A-01R-A96U-41</td>
 <td style="text-align: left;">Primary Tumor</td>
 <td style="text-align: left;">TSV</td>
 <td style="text-align: left;">open</td>
-<td style="text-align: right;">4223569</td>
+<td style="text-align: right;">4248377</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">TCGA-14-4157-01A-01R-A96U-41</td>
+<td style="text-align: left;">TCGA-12-0618-01A-01R-A96S-41</td>
 <td style="text-align: left;">Primary Tumor</td>
 <td style="text-align: left;">TSV</td>
 <td style="text-align: left;">open</td>
-<td style="text-align: right;">4247226</td>
+<td style="text-align: right;">4246193</td>
 </tr>
 </tbody>
 </table>
@@ -2651,17 +2651,17 @@ $ file_name   &lt;chr&gt; &quot;1ccc2b22-7f6c-4973-a6fa-f2c4d6be6dba.rna_seq.aug
 <h4 class="anchored" data-anchor-id="download-filtered-dataset">2.3.2. Download Filtered Dataset</h4>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb17"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb17-1"><a href="#cb17-1" aria-hidden="true" tabindex="-1"></a><span class="fu">GDCdownload</span>(</span>
-<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">query =</span> query_primary,</span>
-<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">directory =</span> <span class="st">&quot;../01_data/01_raw/01_samples&quot;</span>,</span>
-<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">files.per.chunk =</span> <span class="dv">50</span></span>
+<span id="cb17-2"><a href="#cb17-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">query =</span> query_primary,</span>
+<span id="cb17-3"><a href="#cb17-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">directory =</span> here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;01_samples&quot;</span>),</span>
+<span id="cb17-4"><a href="#cb17-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">files.per.chunk =</span> <span class="dv">50</span></span>
 <span id="cb17-5"><a href="#cb17-5" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb17-6"><a href="#cb17-6" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-7"><a href="#cb17-7" aria-hidden="true" tabindex="-1"></a><span class="co"># Confirm download</span></span>
 <span id="cb17-8"><a href="#cb17-8" aria-hidden="true" tabindex="-1"></a><span class="co"># list.files() returns a list of filenames (as strings)</span></span>
 <span id="cb17-9"><a href="#cb17-9" aria-hidden="true" tabindex="-1"></a>downloaded_files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
-<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>  <span class="at">path =</span> <span class="st">&quot;../01_data/01_raw/01_samples&quot;</span>,  <span class="co"># the directory to look inside for the filenames</span></span>
-<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>  <span class="at">recursive =</span> <span class="cn">TRUE</span>,                       <span class="co"># look inside subfolders too</span></span>
-<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>  <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.tsv$&quot;</span>                     <span class="co"># take only those filenames that end in .tsv</span></span>
+<span id="cb17-10"><a href="#cb17-10" aria-hidden="true" tabindex="-1"></a>    <span class="at">path =</span> here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;01_samples&quot;</span>),  <span class="co"># the directory to look inside for the filenames</span></span>
+<span id="cb17-11"><a href="#cb17-11" aria-hidden="true" tabindex="-1"></a>    <span class="at">recursive =</span> <span class="cn">TRUE</span>,                                      <span class="co"># look inside subfolders too</span></span>
+<span id="cb17-12"><a href="#cb17-12" aria-hidden="true" tabindex="-1"></a>    <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.tsv$&quot;</span>                                    <span class="co"># take only those filenames that end in .tsv</span></span>
 <span id="cb17-13"><a href="#cb17-13" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb17-14"><a href="#cb17-14" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb17-15"><a href="#cb17-15" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Download complete</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
@@ -2772,25 +2772,25 @@ $ created_datetime  &lt;chr&gt; &quot;2019-04-28T14:52:06.185781-05:00&quot;, &q
 <td style="text-align: right;">65</td>
 </tr>
 <tr class="odd">
+<td style="text-align: left;">TCGA-08-0352</td>
+<td style="text-align: left;">Dead</td>
+<td style="text-align: right;">39</td>
+<td style="text-align: right;">39</td>
+<td style="text-align: right;">79</td>
+</tr>
+<tr class="even">
 <td style="text-align: left;">TCGA-06-0210</td>
 <td style="text-align: left;">Dead</td>
 <td style="text-align: right;">225</td>
 <td style="text-align: right;">225</td>
 <td style="text-align: right;">72</td>
 </tr>
-<tr class="even">
-<td style="text-align: left;">TCGA-16-1045</td>
-<td style="text-align: left;">Dead</td>
-<td style="text-align: right;">883</td>
-<td style="text-align: right;">883</td>
-<td style="text-align: right;">49</td>
-</tr>
 <tr class="odd">
-<td style="text-align: left;">TCGA-06-6391</td>
+<td style="text-align: left;">TCGA-06-0237</td>
 <td style="text-align: left;">Dead</td>
-<td style="text-align: right;">45</td>
-<td style="text-align: right;">45</td>
-<td style="text-align: right;">44</td>
+<td style="text-align: right;">415</td>
+<td style="text-align: right;">415</td>
+<td style="text-align: right;">75</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;">TCGA-06-0189</td>
@@ -2800,18 +2800,18 @@ $ created_datetime  &lt;chr&gt; &quot;2019-04-28T14:52:06.185781-05:00&quot;, &q
 <td style="text-align: right;">55</td>
 </tr>
 <tr class="odd">
+<td style="text-align: left;">TCGA-06-A6S0</td>
+<td style="text-align: left;">Dead</td>
+<td style="text-align: right;">95</td>
+<td style="text-align: right;">95</td>
+<td style="text-align: right;">79</td>
+</tr>
+<tr class="even">
 <td style="text-align: left;">TCGA-06-0132</td>
 <td style="text-align: left;">Dead</td>
 <td style="text-align: right;">771</td>
 <td style="text-align: right;">771</td>
 <td style="text-align: right;">49</td>
-</tr>
-<tr class="even">
-<td style="text-align: left;">TCGA-06-0148</td>
-<td style="text-align: left;">Dead</td>
-<td style="text-align: right;">307</td>
-<td style="text-align: right;">307</td>
-<td style="text-align: right;">76</td>
 </tr>
 </tbody>
 </table>
@@ -2821,7 +2821,7 @@ $ created_datetime  &lt;chr&gt; &quot;2019-04-28T14:52:06.185781-05:00&quot;, &q
 <section id="save-clinical-metadata" class="level3">
 <h3 class="anchored" data-anchor-id="save-clinical-metadata">3.3. Save Clinical Metadata</h3>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(clinical, <span class="st">&quot;../01_data/01_raw/02_clinical/01_clinical_metadata.rds&quot;</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb32"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb32-1"><a href="#cb32-1" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(clinical, here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;02_clinical&quot;</span>, <span class="st">&quot;01_clinical_metadata.rds&quot;</span>))</span>
 <span id="cb32-2"><a href="#cb32-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved to 01_data/01_raw/02_clinical/01_clinical_metadata.rds</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Saved to 01_data/01_raw/02_clinical/01_clinical_metadata.rds</code></pre>
@@ -2834,14 +2834,14 @@ $ created_datetime  &lt;chr&gt; &quot;2019-04-28T14:52:06.185781-05:00&quot;, &q
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb34"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb34-1"><a href="#cb34-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Confirm sample files downloaded</span></span>
 <span id="cb34-2"><a href="#cb34-2" aria-hidden="true" tabindex="-1"></a>sample_files_exist <span class="ot">&lt;-</span> <span class="fu">length</span>(<span class="fu">list.files</span>(</span>
-<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../01_data/01_raw/01_samples&quot;</span>,</span>
+<span id="cb34-3"><a href="#cb34-3" aria-hidden="true" tabindex="-1"></a>  here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;01_samples&quot;</span>),</span>
 <span id="cb34-4"><a href="#cb34-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">recursive =</span> <span class="cn">TRUE</span>,</span>
 <span id="cb34-5"><a href="#cb34-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.tsv$&quot;</span></span>
 <span id="cb34-6"><a href="#cb34-6" aria-hidden="true" tabindex="-1"></a>)) <span class="sc">==</span> <span class="dv">372</span></span>
 <span id="cb34-7"><a href="#cb34-7" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb34-8"><a href="#cb34-8" aria-hidden="true" tabindex="-1"></a><span class="co"># Confirm clinical metadata saved</span></span>
 <span id="cb34-9"><a href="#cb34-9" aria-hidden="true" tabindex="-1"></a>clinical_file_exists <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(</span>
-<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../01_data/01_raw/02_clinical/01_clinical_metadata.rds&quot;</span></span>
+<span id="cb34-10"><a href="#cb34-10" aria-hidden="true" tabindex="-1"></a>  here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;02_clinical&quot;</span>, <span class="st">&quot;01_clinical_metadata.rds&quot;</span>)</span>
 <span id="cb34-11"><a href="#cb34-11" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb34-12"><a href="#cb34-12" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb34-13"><a href="#cb34-13" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Sample files (372 TSV):&quot;</span>, <span class="fu">ifelse</span>(sample_files_exist, <span class="st">&quot;✓&quot;</span>, <span class="st">&quot;✗&quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>

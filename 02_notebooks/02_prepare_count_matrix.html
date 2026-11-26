@@ -7,9 +7,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Shirshak Aryal">
-<meta name="dcterms.date" content="2026-07-03">
+<meta name="dcterms.date" content="2026-11-25">
 
-<title>Notebook 02: Prepare Dataset</title>
+<title>Notebook 02: Prepare Count Matrix</title>
 <style>
 
 code{white-space: pre-wrap;}
@@ -2385,7 +2385,7 @@ vertical-align: -.125em;
 
 <header id="title-block-header" class="quarto-title-block default">
 <div class="quarto-title">
-<h1 class="title">Notebook 02: Prepare Dataset</h1>
+<h1 class="title">Notebook 02: Prepare Count Matrix</h1>
 </div>
 
 
@@ -2402,7 +2402,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">July 3, 2026</p>
+      <p class="date">November 25, 2026</p>
     </div>
   </div>
   
@@ -2424,9 +2424,9 @@ vertical-align: -.125em;
 <li><p><strong>Gene metadata</strong> (e.g, Ensembl IDs, gene symbols, chromosome coordinates, etc.): equivalent to <strong><code>AnnData</code>’s <code>adata.vars</code></strong></p></li>
 </ul>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(TCGAbiolinks)          <span class="co"># query and download TCGA datasets from GDC</span></span>
-<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse)             <span class="co"># data manipulation and visualisation</span></span>
-<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(SummarizedExperiment)  <span class="co"># container to store multi-assay data; AnnData of R</span></span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(TCGAbiolinks) <span class="co"># query and download TCGA datasets from GDC</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(tidyverse) <span class="co"># data manipulation and visualisation</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="fu">library</span>(SummarizedExperiment) <span class="co"># container to store multi-assay data; AnnData of R</span></span>
 <span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Libraries loaded successfully</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -2447,18 +2447,18 @@ Libraries loaded successfully</code></pre>
 </div>
 </div>
 </section>
-<section id="prepare-dataset" class="level2">
-<h2 class="anchored" data-anchor-id="prepare-dataset">2. Prepare Dataset</h2>
+<section id="prepare-count-matrix" class="level2">
+<h2 class="anchored" data-anchor-id="prepare-count-matrix">2. Prepare Count Matrix</h2>
 <section id="inspect-sample-details" class="level3">
 <h3 class="anchored" data-anchor-id="inspect-sample-details">2.1. Inspect Sample Details</h3>
 <p>Inspect a single sample file to explore and understand the structure and contents.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Get path to first TSV file</span></span>
 <span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>sample_files <span class="ot">&lt;-</span> <span class="fu">list.files</span>(</span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">path =</span> <span class="st">&quot;../01_data/01_raw/01_samples&quot;</span>,</span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">recursive =</span> <span class="cn">TRUE</span>,</span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.tsv$&quot;</span>,</span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">full.names =</span> <span class="cn">TRUE</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">path =</span> here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;01_samples&quot;</span>),</span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">recursive =</span> <span class="cn">TRUE</span>,</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">pattern =</span> <span class="st">&quot;</span><span class="sc">\\</span><span class="st">.tsv$&quot;</span>,</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">full.names =</span> <span class="cn">TRUE</span></span>
 <span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a><span class="co"># Read first file</span></span>
@@ -2712,11 +2712,11 @@ Libraries loaded successfully</code></pre>
 <p>Recreate the query for primary tumor samples from <strong>Notebook 01</strong>. This is required as a <strong>mandatory input for <code>GDCprepare()</code></strong>, which uses it to locate and correctly <strong>map the 372 downloaded files to their respective sample identities</strong>.</p>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb20"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb20-1"><a href="#cb20-1" aria-hidden="true" tabindex="-1"></a>query_primary <span class="ot">&lt;-</span> <span class="fu">GDCquery</span>(</span>
-<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>  <span class="at">project =</span> <span class="st">&quot;TCGA-GBM&quot;</span>,</span>
-<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">data.category =</span> <span class="st">&quot;Transcriptome Profiling&quot;</span>,</span>
-<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">data.type =</span> <span class="st">&quot;Gene Expression Quantification&quot;</span>,</span>
-<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>  <span class="at">workflow.type =</span> <span class="st">&quot;STAR - Counts&quot;</span>,</span>
-<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>  <span class="at">sample.type =</span> <span class="st">&quot;Primary Tumor&quot;</span></span>
+<span id="cb20-2"><a href="#cb20-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">project =</span> <span class="st">&quot;TCGA-GBM&quot;</span>,</span>
+<span id="cb20-3"><a href="#cb20-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">data.category =</span> <span class="st">&quot;Transcriptome Profiling&quot;</span>,</span>
+<span id="cb20-4"><a href="#cb20-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">data.type =</span> <span class="st">&quot;Gene Expression Quantification&quot;</span>,</span>
+<span id="cb20-5"><a href="#cb20-5" aria-hidden="true" tabindex="-1"></a>    <span class="at">workflow.type =</span> <span class="st">&quot;STAR - Counts&quot;</span>,</span>
+<span id="cb20-6"><a href="#cb20-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">sample.type =</span> <span class="st">&quot;Primary Tumor&quot;</span></span>
 <span id="cb20-7"><a href="#cb20-7" aria-hidden="true" tabindex="-1"></a>)</span>
 <span id="cb20-8"><a href="#cb20-8" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Query object recreated successfully</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -2730,7 +2730,7 @@ Libraries loaded successfully</code></pre>
 </section>
 <section id="create-summarizedexperiment-object" class="level4">
 <h4 class="anchored" data-anchor-id="create-summarizedexperiment-object">2.2.2. Create <code>SummarizedExperiment</code> Object</h4>
-<p>The GDCPrepare() function is used here, which performs three things simultaneously:</p>
+<p>The GDCPrepare() function is used here, which performs three things simultaneously: constructs the count matrix, attaches sample metadata, and attaches gene metadata.</p>
 <ul>
 <li><p><strong>Constructs the count matrix</strong></p>
 <ul>
@@ -2803,399 +2803,399 @@ Libraries loaded successfully</code></pre>
 </ul>
 <p>The output is a <strong>SummarizedExperiment object</strong>, which has all three components linked together in one structured container. The <code>unstranded</code> column is extracted <strong>later</strong>.</p>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gc</span>()  <span class="co"># free unused memory (i.e. garbage collect)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb24"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb24-1"><a href="#cb24-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gc</span>() <span class="co"># free unused memory (i.e. garbage collect)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>           used  (Mb) gc trigger  (Mb) max used  (Mb)
-Ncells  8076035 431.4   14651038 782.5 11508711 614.7
-Vcells 15927043 121.6   27797752 212.1 18869402 144.0</code></pre>
+Ncells  8080432 431.6   14671220 783.6 11502454 614.3
+Vcells 15996426 122.1   27732137 211.6 18874006 144.0</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb26"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb26-1"><a href="#cb26-1" aria-hidden="true" tabindex="-1"></a><span class="co"># create SE object</span></span>
 <span id="cb26-2"><a href="#cb26-2" aria-hidden="true" tabindex="-1"></a>se <span class="ot">&lt;-</span> <span class="fu">GDCprepare</span>(</span>
-<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>  <span class="at">query =</span> query_primary,</span>
-<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>  <span class="at">directory =</span> <span class="st">&quot;../01_data/01_raw/01_samples&quot;</span></span>
+<span id="cb26-3"><a href="#cb26-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">query =</span> query_primary,</span>
+<span id="cb26-4"><a href="#cb26-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">directory =</span> here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;01_samples&quot;</span>)</span>
 <span id="cb26-5"><a href="#cb26-5" aria-hidden="true" tabindex="-1"></a>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>
 |                                                    |  0%                      
-|                                                    |0.2688172% ~14 s remaining
-|                                                    |0.5376344% ~15 s remaining
-|                                                    |0.8064516% ~15 s remaining
-|                                                    |1.075269% ~15 s remaining 
-|                                                    |1.344086% ~15 s remaining 
-|                                                    |1.612903% ~15 s remaining 
-|                                                    |1.88172% ~16 s remaining  
-|=                                                   |2.150538% ~17 s remaining 
-|=                                                   |2.419355% ~18 s remaining 
-|=                                                   |2.688172% ~18 s remaining 
-|=                                                   |2.956989% ~18 s remaining 
-|=                                                   |3.225806% ~19 s remaining 
-|=                                                   |3.494624% ~20 s remaining 
-|=                                                   |3.763441% ~20 s remaining 
-|==                                                  |4.032258% ~20 s remaining 
-|==                                                  |4.301075% ~21 s remaining 
-|==                                                  |4.569892% ~21 s remaining 
-|==                                                  |4.83871% ~20 s remaining  
-|==                                                  |5.107527% ~21 s remaining 
-|==                                                  |5.376344% ~21 s remaining 
-|==                                                  |5.645161% ~21 s remaining 
-|===                                                 |5.913978% ~20 s remaining 
-|===                                                 |6.182796% ~25 s remaining 
-|===                                                 |6.451613% ~25 s remaining 
-|===                                                 |6.72043% ~25 s remaining  
-|===                                                 |6.989247% ~25 s remaining 
-|===                                                 |7.258065% ~25 s remaining 
-|===                                                 |7.526882% ~25 s remaining 
-|====                                                |7.795699% ~24 s remaining 
-|====                                                |8.064516% ~24 s remaining 
-|====                                                |8.333333% ~24 s remaining 
-|====                                                |8.602151% ~24 s remaining 
-|====                                                |8.870968% ~23 s remaining 
-|====                                                |9.139785% ~23 s remaining 
-|====                                                |9.408602% ~23 s remaining 
-|=====                                               |9.677419% ~26 s remaining 
-|=====                                               |9.946237% ~25 s remaining 
-|=====                                               |10.21505% ~25 s remaining 
-|=====                                               |10.48387% ~25 s remaining 
-|=====                                               |10.75269% ~24 s remaining 
-|=====                                               |11.02151% ~24 s remaining 
-|=====                                               |11.29032% ~24 s remaining 
-|======                                              |11.55914% ~23 s remaining 
-|======                                              |11.82796% ~23 s remaining 
-|======                                              |12.09677% ~23 s remaining 
-|======                                              |12.36559% ~23 s remaining 
-|======                                              |12.63441% ~22 s remaining 
-|======                                              |12.90323% ~22 s remaining 
-|======                                              |13.17204% ~22 s remaining 
-|======                                              |13.44086% ~21 s remaining 
-|=======                                             |13.70968% ~21 s remaining 
-|=======                                             |13.97849% ~23 s remaining 
-|=======                                             |14.24731% ~23 s remaining 
-|=======                                             |14.51613% ~22 s remaining 
-|=======                                             |14.78495% ~22 s remaining 
-|=======                                             |15.05376% ~22 s remaining 
-|=======                                             |15.32258% ~22 s remaining 
-|========                                            |15.5914% ~21 s remaining  
-|========                                            |15.86022% ~21 s remaining 
-|========                                            |16.12903% ~21 s remaining 
-|========                                            |16.39785% ~21 s remaining 
-|========                                            |16.66667% ~20 s remaining 
-|========                                            |16.93548% ~20 s remaining 
-|========                                            |17.2043% ~20 s remaining  
-|=========                                           |17.47312% ~20 s remaining 
-|=========                                           |17.74194% ~20 s remaining 
-|=========                                           |18.01075% ~19 s remaining 
-|=========                                           |18.27957% ~19 s remaining 
-|=========                                           |18.54839% ~19 s remaining 
-|=========                                           |18.8172% ~19 s remaining  
-|=========                                           |19.08602% ~19 s remaining 
-|==========                                          |19.35484% ~20 s remaining 
-|==========                                          |19.62366% ~20 s remaining 
-|==========                                          |19.89247% ~20 s remaining 
-|==========                                          |20.16129% ~20 s remaining 
-|==========                                          |20.43011% ~20 s remaining 
-|==========                                          |20.69892% ~19 s remaining 
-|==========                                          |20.96774% ~19 s remaining 
-|===========                                         |21.23656% ~19 s remaining 
-|===========                                         |21.50538% ~19 s remaining 
-|===========                                         |21.77419% ~19 s remaining 
-|===========                                         |22.04301% ~19 s remaining 
-|===========                                         |22.31183% ~19 s remaining 
-|===========                                         |22.58065% ~18 s remaining 
-|===========                                         |22.84946% ~18 s remaining 
-|============                                        |23.11828% ~18 s remaining 
-|============                                        |23.3871% ~18 s remaining  
-|============                                        |23.65591% ~18 s remaining 
-|============                                        |23.92473% ~18 s remaining 
-|============                                        |24.19355% ~18 s remaining 
-|============                                        |24.46237% ~17 s remaining 
-|============                                        |24.73118% ~17 s remaining 
-|=============                                       | 25% ~17 s remaining      
-|=============                                       |25.26882% ~17 s remaining 
-|=============                                       |25.53763% ~18 s remaining 
-|=============                                       |25.80645% ~18 s remaining 
-|=============                                       |26.07527% ~18 s remaining 
-|=============                                       |26.34409% ~18 s remaining 
-|=============                                       |26.6129% ~18 s remaining  
-|=============                                       |26.88172% ~18 s remaining 
-|==============                                      |27.15054% ~18 s remaining 
-|==============                                      |27.41935% ~17 s remaining 
-|==============                                      |27.68817% ~17 s remaining 
-|==============                                      |27.95699% ~17 s remaining 
-|==============                                      |28.22581% ~17 s remaining 
-|==============                                      |28.49462% ~17 s remaining 
-|==============                                      |28.76344% ~17 s remaining 
-|===============                                     |29.03226% ~16 s remaining 
-|===============                                     |29.30108% ~16 s remaining 
-|===============                                     |29.56989% ~16 s remaining 
-|===============                                     |29.83871% ~16 s remaining 
-|===============                                     |30.10753% ~16 s remaining 
-|===============                                     |30.37634% ~16 s remaining 
-|===============                                     |30.64516% ~16 s remaining 
-|================                                    |30.91398% ~16 s remaining 
-|================                                    |31.1828% ~16 s remaining  
-|================                                    |31.45161% ~15 s remaining 
-|================                                    |31.72043% ~15 s remaining 
-|================                                    |31.98925% ~15 s remaining 
-|================                                    |32.25806% ~15 s remaining 
-|================                                    |32.52688% ~15 s remaining 
-|=================                                   |32.7957% ~15 s remaining  
-|=================                                   |33.06452% ~16 s remaining 
-|=================                                   |33.33333% ~15 s remaining 
-|=================                                   |33.60215% ~15 s remaining 
-|=================                                   |33.87097% ~15 s remaining 
-|=================                                   |34.13978% ~15 s remaining 
-|=================                                   |34.4086% ~15 s remaining  
-|==================                                  |34.67742% ~15 s remaining 
-|==================                                  |34.94624% ~15 s remaining 
-|==================                                  |35.21505% ~15 s remaining 
-|==================                                  |35.48387% ~15 s remaining 
-|==================                                  |35.75269% ~14 s remaining 
-|==================                                  |36.02151% ~14 s remaining 
-|==================                                  |36.29032% ~14 s remaining 
-|===================                                 |36.55914% ~14 s remaining 
-|===================                                 |36.82796% ~14 s remaining 
-|===================                                 |37.09677% ~14 s remaining 
-|===================                                 |37.36559% ~14 s remaining 
-|===================                                 |37.63441% ~14 s remaining 
-|===================                                 |37.90323% ~14 s remaining 
-|===================                                 |38.17204% ~14 s remaining 
-|===================                                 |38.44086% ~13 s remaining 
-|====================                                |38.70968% ~13 s remaining 
-|====================                                |38.97849% ~13 s remaining 
-|====================                                |39.24731% ~13 s remaining 
-|====================                                |39.51613% ~13 s remaining 
-|====================                                |39.78495% ~13 s remaining 
-|====================                                |40.05376% ~13 s remaining 
-|====================                                |40.32258% ~13 s remaining 
-|=====================                               |40.5914% ~13 s remaining  
-|=====================                               |40.86022% ~13 s remaining 
-|=====================                               |41.12903% ~12 s remaining 
-|=====================                               |41.39785% ~12 s remaining 
-|=====================                               |41.66667% ~12 s remaining 
-|=====================                               |41.93548% ~13 s remaining 
-|=====================                               |42.2043% ~13 s remaining  
-|======================                              |42.47312% ~13 s remaining 
-|======================                              |42.74194% ~13 s remaining 
-|======================                              |43.01075% ~12 s remaining 
-|======================                              |43.27957% ~12 s remaining 
-|======================                              |43.54839% ~12 s remaining 
-|======================                              |43.8172% ~12 s remaining  
-|======================                              |44.08602% ~12 s remaining 
-|=======================                             |44.35484% ~12 s remaining 
-|=======================                             |44.62366% ~12 s remaining 
-|=======================                             |44.89247% ~12 s remaining 
-|=======================                             |45.16129% ~12 s remaining 
-|=======================                             |45.43011% ~12 s remaining 
-|=======================                             |45.69892% ~11 s remaining 
-|=======================                             |45.96774% ~11 s remaining 
-|========================                            |46.23656% ~11 s remaining 
-|========================                            |46.50538% ~11 s remaining 
-|========================                            |46.77419% ~11 s remaining 
-|========================                            |47.04301% ~11 s remaining 
-|========================                            |47.31183% ~11 s remaining 
-|========================                            |47.58065% ~11 s remaining 
-|========================                            |47.84946% ~11 s remaining 
-|=========================                           |48.11828% ~11 s remaining 
-|=========================                           |48.3871% ~11 s remaining  
-|=========================                           |48.65591% ~11 s remaining 
-|=========================                           |48.92473% ~10 s remaining 
-|=========================                           |49.19355% ~10 s remaining 
-|=========================                           |49.46237% ~10 s remaining 
-|=========================                           |49.73118% ~10 s remaining 
-|==========================                          | 50% ~10 s remaining      
-|==========================                          |50.26882% ~10 s remaining 
-|==========================                          |50.53763% ~10 s remaining 
-|==========================                          |50.80645% ~10 s remaining 
-|==========================                          |51.07527% ~10 s remaining 
-|==========================                          |51.34409% ~10 s remaining 
-|==========================                          |51.6129% ~10 s remaining  
-|==========================                          |51.88172% ~10 s remaining 
-|===========================                         |52.15054% ~9 s remaining  
-|===========================                         |52.41935% ~9 s remaining  
-|===========================                         |52.68817% ~10 s remaining 
-|===========================                         |52.95699% ~10 s remaining 
-|===========================                         |53.22581% ~10 s remaining 
-|===========================                         |53.49462% ~9 s remaining  
-|===========================                         |53.76344% ~9 s remaining  
-|============================                        |54.03226% ~9 s remaining  
-|============================                        |54.30108% ~9 s remaining  
-|============================                        |54.56989% ~9 s remaining  
-|============================                        |54.83871% ~9 s remaining  
-|============================                        |55.10753% ~9 s remaining  
-|============================                        |55.37634% ~9 s remaining  
-|============================                        |55.64516% ~9 s remaining  
-|=============================                       |55.91398% ~9 s remaining  
-|=============================                       |56.1828% ~9 s remaining   
-|=============================                       |56.45161% ~9 s remaining  
-|=============================                       |56.72043% ~9 s remaining  
-|=============================                       |56.98925% ~9 s remaining  
-|=============================                       |57.25806% ~8 s remaining  
-|=============================                       |57.52688% ~8 s remaining  
-|==============================                      |57.7957% ~8 s remaining   
-|==============================                      |58.06452% ~8 s remaining  
-|==============================                      |58.33333% ~8 s remaining  
-|==============================                      |58.60215% ~8 s remaining  
-|==============================                      |58.87097% ~8 s remaining  
-|==============================                      |59.13978% ~8 s remaining  
-|==============================                      |59.4086% ~8 s remaining   
-|===============================                     |59.67742% ~8 s remaining  
-|===============================                     |59.94624% ~8 s remaining  
-|===============================                     |60.21505% ~8 s remaining  
-|===============================                     |60.48387% ~8 s remaining  
-|===============================                     |60.75269% ~8 s remaining  
-|===============================                     |61.02151% ~7 s remaining  
-|===============================                     |61.29032% ~7 s remaining  
-|================================                    |61.55914% ~7 s remaining  
-|================================                    |61.82796% ~7 s remaining  
-|================================                    |62.09677% ~7 s remaining  
-|================================                    |62.36559% ~7 s remaining  
-|================================                    |62.63441% ~7 s remaining  
-|================================                    |62.90323% ~7 s remaining  
-|================================                    |63.17204% ~7 s remaining  
-|================================                    |63.44086% ~7 s remaining  
-|=================================                   |63.70968% ~7 s remaining  
-|=================================                   |63.97849% ~7 s remaining  
-|=================================                   |64.24731% ~7 s remaining  
-|=================================                   |64.51613% ~7 s remaining  
-|=================================                   |64.78495% ~7 s remaining  
-|=================================                   |65.05376% ~7 s remaining  
-|=================================                   |65.32258% ~6 s remaining  
-|==================================                  |65.5914% ~6 s remaining   
-|==================================                  |65.86022% ~7 s remaining  
-|==================================                  |66.12903% ~7 s remaining  
-|==================================                  |66.39785% ~6 s remaining  
-|==================================                  |66.66667% ~6 s remaining  
-|==================================                  |66.93548% ~6 s remaining  
-|==================================                  |67.2043% ~6 s remaining   
-|===================================                 |67.47312% ~6 s remaining  
-|===================================                 |67.74194% ~6 s remaining  
-|===================================                 |68.01075% ~6 s remaining  
-|===================================                 |68.27957% ~6 s remaining  
-|===================================                 |68.54839% ~6 s remaining  
-|===================================                 |68.8172% ~6 s remaining   
-|===================================                 |69.08602% ~6 s remaining  
-|====================================                |69.35484% ~6 s remaining  
-|====================================                |69.62366% ~6 s remaining  
-|====================================                |69.89247% ~6 s remaining  
-|====================================                |70.16129% ~6 s remaining  
-|====================================                |70.43011% ~6 s remaining  
-|====================================                |70.69892% ~6 s remaining  
-|====================================                |70.96774% ~6 s remaining  
-|=====================================               |71.23656% ~5 s remaining  
-|=====================================               |71.50538% ~5 s remaining  
-|=====================================               |71.77419% ~5 s remaining  
-|=====================================               |72.04301% ~5 s remaining  
-|=====================================               |72.31183% ~5 s remaining  
-|=====================================               |72.58065% ~5 s remaining  
-|=====================================               |72.84946% ~5 s remaining  
-|======================================              |73.11828% ~5 s remaining  
-|======================================              |73.3871% ~5 s remaining   
-|======================================              |73.65591% ~5 s remaining  
-|======================================              |73.92473% ~5 s remaining  
-|======================================              |74.19355% ~5 s remaining  
-|======================================              |74.46237% ~5 s remaining  
-|======================================              |74.73118% ~5 s remaining  
-|=======================================             | 75% ~5 s remaining       
-|=======================================             |75.26882% ~5 s remaining  
-|=======================================             |75.53763% ~5 s remaining  
-|=======================================             |75.80645% ~4 s remaining  
-|=======================================             |76.07527% ~4 s remaining  
-|=======================================             |76.34409% ~4 s remaining  
-|=======================================             |76.6129% ~4 s remaining   
-|=======================================             |76.88172% ~4 s remaining  
-|========================================            |77.15054% ~4 s remaining  
-|========================================            |77.41935% ~4 s remaining  
-|========================================            |77.68817% ~4 s remaining  
-|========================================            |77.95699% ~4 s remaining  
-|========================================            |78.22581% ~4 s remaining  
-|========================================            |78.49462% ~4 s remaining  
-|========================================            |78.76344% ~4 s remaining  
-|=========================================           |79.03226% ~4 s remaining  
-|=========================================           |79.30108% ~4 s remaining  
-|=========================================           |79.56989% ~4 s remaining  
-|=========================================           |79.83871% ~4 s remaining  
-|=========================================           |80.10753% ~4 s remaining  
-|=========================================           |80.37634% ~4 s remaining  
-|=========================================           |80.64516% ~3 s remaining  
-|==========================================          |80.91398% ~3 s remaining  
-|==========================================          |81.1828% ~3 s remaining   
-|==========================================          |81.45161% ~3 s remaining  
-|==========================================          |81.72043% ~3 s remaining  
-|==========================================          |81.98925% ~3 s remaining  
-|==========================================          |82.25806% ~3 s remaining  
-|==========================================          |82.52688% ~3 s remaining  
-|===========================================         |82.7957% ~3 s remaining   
-|===========================================         |83.06452% ~3 s remaining  
-|===========================================         |83.33333% ~3 s remaining  
-|===========================================         |83.60215% ~3 s remaining  
-|===========================================         |83.87097% ~3 s remaining  
-|===========================================         |84.13978% ~3 s remaining  
-|===========================================         |84.4086% ~3 s remaining   
-|============================================        |84.67742% ~3 s remaining  
-|============================================        |84.94624% ~3 s remaining  
-|============================================        |85.21505% ~3 s remaining  
-|============================================        |85.48387% ~3 s remaining  
-|============================================        |85.75269% ~3 s remaining  
-|============================================        |86.02151% ~3 s remaining  
-|============================================        |86.29032% ~2 s remaining  
-|=============================================       |86.55914% ~2 s remaining  
-|=============================================       |86.82796% ~2 s remaining  
-|=============================================       |87.09677% ~2 s remaining  
-|=============================================       |87.36559% ~2 s remaining  
-|=============================================       |87.63441% ~2 s remaining  
-|=============================================       |87.90323% ~2 s remaining  
-|=============================================       |88.17204% ~2 s remaining  
-|=============================================       |88.44086% ~2 s remaining  
-|==============================================      |88.70968% ~2 s remaining  
-|==============================================      |88.97849% ~2 s remaining  
-|==============================================      |89.24731% ~2 s remaining  
-|==============================================      |89.51613% ~2 s remaining  
-|==============================================      |89.78495% ~2 s remaining  
-|==============================================      |90.05376% ~2 s remaining  
-|==============================================      |90.32258% ~2 s remaining  
-|===============================================     |90.5914% ~2 s remaining   
-|===============================================     |90.86022% ~2 s remaining  
-|===============================================     |91.12903% ~2 s remaining  
-|===============================================     |91.39785% ~2 s remaining  
-|===============================================     |91.66667% ~1 s remaining  
-|===============================================     |91.93548% ~1 s remaining  
-|===============================================     |92.2043% ~1 s remaining   
-|================================================    |92.47312% ~1 s remaining  
-|================================================    |92.74194% ~1 s remaining  
-|================================================    |93.01075% ~1 s remaining  
-|================================================    |93.27957% ~1 s remaining  
-|================================================    |93.54839% ~1 s remaining  
-|================================================    |93.8172% ~1 s remaining   
-|================================================    |94.08602% ~1 s remaining  
-|=================================================   |94.35484% ~1 s remaining  
-|=================================================   |94.62366% ~1 s remaining  
-|=================================================   |94.89247% ~1 s remaining  
-|=================================================   |95.16129% ~1 s remaining  
-|=================================================   |95.43011% ~1 s remaining  
-|=================================================   |95.69892% ~1 s remaining  
-|=================================================   |95.96774% ~1 s remaining  
-|==================================================  |96.23656% ~1 s remaining  
+|                                                    |0.2688172% ~24 s remaining
+|                                                    |0.5376344% ~28 s remaining
+|                                                    |0.8064516% ~31 s remaining
+|                                                    |1.075269% ~31 s remaining 
+|                                                    |1.344086% ~30 s remaining 
+|                                                    |1.612903% ~31 s remaining 
+|                                                    |1.88172% ~29 s remaining  
+|=                                                   |2.150538% ~29 s remaining 
+|=                                                   |2.419355% ~28 s remaining 
+|=                                                   |2.688172% ~28 s remaining 
+|=                                                   |2.956989% ~28 s remaining 
+|=                                                   |3.225806% ~27 s remaining 
+|=                                                   |3.494624% ~28 s remaining 
+|=                                                   |3.763441% ~28 s remaining 
+|==                                                  |4.032258% ~28 s remaining 
+|==                                                  |4.301075% ~27 s remaining 
+|==                                                  |4.569892% ~26 s remaining 
+|==                                                  |4.83871% ~26 s remaining  
+|==                                                  |5.107527% ~25 s remaining 
+|==                                                  |5.376344% ~25 s remaining 
+|==                                                  |5.645161% ~25 s remaining 
+|===                                                 |5.913978% ~32 s remaining 
+|===                                                 |6.182796% ~31 s remaining 
+|===                                                 |6.451613% ~30 s remaining 
+|===                                                 |6.72043% ~30 s remaining  
+|===                                                 |6.989247% ~30 s remaining 
+|===                                                 |7.258065% ~29 s remaining 
+|===                                                 |7.526882% ~29 s remaining 
+|====                                                |7.795699% ~28 s remaining 
+|====                                                |8.064516% ~28 s remaining 
+|====                                                |8.333333% ~27 s remaining 
+|====                                                |8.602151% ~28 s remaining 
+|====                                                |8.870968% ~27 s remaining 
+|====                                                |9.139785% ~27 s remaining 
+|====                                                |9.408602% ~27 s remaining 
+|=====                                               |9.677419% ~30 s remaining 
+|=====                                               |9.946237% ~30 s remaining 
+|=====                                               |10.21505% ~30 s remaining 
+|=====                                               |10.48387% ~30 s remaining 
+|=====                                               |10.75269% ~29 s remaining 
+|=====                                               |11.02151% ~29 s remaining 
+|=====                                               |11.29032% ~29 s remaining 
+|======                                              |11.55914% ~29 s remaining 
+|======                                              |11.82796% ~28 s remaining 
+|======                                              |12.09677% ~28 s remaining 
+|======                                              |12.36559% ~28 s remaining 
+|======                                              |12.63441% ~28 s remaining 
+|======                                              |12.90323% ~28 s remaining 
+|======                                              |13.17204% ~27 s remaining 
+|======                                              |13.44086% ~27 s remaining 
+|=======                                             |13.70968% ~26 s remaining 
+|=======                                             |13.97849% ~29 s remaining 
+|=======                                             |14.24731% ~29 s remaining 
+|=======                                             |14.51613% ~29 s remaining 
+|=======                                             |14.78495% ~28 s remaining 
+|=======                                             |15.05376% ~28 s remaining 
+|=======                                             |15.32258% ~28 s remaining 
+|========                                            |15.5914% ~28 s remaining  
+|========                                            |15.86022% ~28 s remaining 
+|========                                            |16.12903% ~27 s remaining 
+|========                                            |16.39785% ~27 s remaining 
+|========                                            |16.66667% ~27 s remaining 
+|========                                            |16.93548% ~27 s remaining 
+|========                                            |17.2043% ~26 s remaining  
+|=========                                           |17.47312% ~26 s remaining 
+|=========                                           |17.74194% ~26 s remaining 
+|=========                                           |18.01075% ~26 s remaining 
+|=========                                           |18.27957% ~26 s remaining 
+|=========                                           |18.54839% ~25 s remaining 
+|=========                                           |18.8172% ~25 s remaining  
+|=========                                           |19.08602% ~27 s remaining 
+|==========                                          |19.35484% ~27 s remaining 
+|==========                                          |19.62366% ~27 s remaining 
+|==========                                          |19.89247% ~27 s remaining 
+|==========                                          |20.16129% ~27 s remaining 
+|==========                                          |20.43011% ~26 s remaining 
+|==========                                          |20.69892% ~26 s remaining 
+|==========                                          |20.96774% ~26 s remaining 
+|===========                                         |21.23656% ~26 s remaining 
+|===========                                         |21.50538% ~25 s remaining 
+|===========                                         |21.77419% ~25 s remaining 
+|===========                                         |22.04301% ~25 s remaining 
+|===========                                         |22.31183% ~25 s remaining 
+|===========                                         |22.58065% ~24 s remaining 
+|===========                                         |22.84946% ~24 s remaining 
+|============                                        |23.11828% ~24 s remaining 
+|============                                        |23.3871% ~24 s remaining  
+|============                                        |23.65591% ~24 s remaining 
+|============                                        |23.92473% ~24 s remaining 
+|============                                        |24.19355% ~24 s remaining 
+|============                                        |24.46237% ~23 s remaining 
+|============                                        |24.73118% ~23 s remaining 
+|=============                                       | 25% ~23 s remaining      
+|=============                                       |25.26882% ~24 s remaining 
+|=============                                       |25.53763% ~24 s remaining 
+|=============                                       |25.80645% ~24 s remaining 
+|=============                                       |26.07527% ~24 s remaining 
+|=============                                       |26.34409% ~24 s remaining 
+|=============                                       |26.6129% ~23 s remaining  
+|=============                                       |26.88172% ~24 s remaining 
+|==============                                      |27.15054% ~24 s remaining 
+|==============                                      |27.41935% ~25 s remaining 
+|==============                                      |27.68817% ~28 s remaining 
+|==============                                      |27.95699% ~30 s remaining 
+|==============                                      |28.22581% ~31 s remaining 
+|==============                                      |28.49462% ~31 s remaining 
+|==============                                      |28.76344% ~32 s remaining 
+|===============                                     |29.03226% ~35 s remaining 
+|===============                                     |29.30108% ~37 s remaining 
+|===============                                     |29.56989% ~40 s remaining 
+|===============                                     |29.83871% ~41 s remaining 
+|===============                                     |30.10753% ~43 s remaining 
+|===============                                     |30.37634% ~46 s remaining 
+|===============                                     |30.64516% ~45 s remaining 
+|================                                    |30.91398% ~45 s remaining 
+|================                                    |31.1828% ~45 s remaining  
+|================                                    |31.45161% ~44 s remaining 
+|================                                    |31.72043% ~44 s remaining 
+|================                                    |31.98925% ~44 s remaining 
+|================                                    |32.25806% ~43 s remaining 
+|================                                    |32.52688% ~43 s remaining 
+|=================                                   |32.7957% ~44 s remaining  
+|=================                                   |33.06452% ~43 s remaining 
+|=================                                   |33.33333% ~43 s remaining 
+|=================                                   |33.60215% ~43 s remaining 
+|=================                                   |33.87097% ~42 s remaining 
+|=================                                   |34.13978% ~42 s remaining 
+|=================                                   |34.4086% ~42 s remaining  
+|==================                                  |34.67742% ~41 s remaining 
+|==================                                  |34.94624% ~41 s remaining 
+|==================                                  |35.21505% ~41 s remaining 
+|==================                                  |35.48387% ~40 s remaining 
+|==================                                  |35.75269% ~40 s remaining 
+|==================                                  |36.02151% ~40 s remaining 
+|==================                                  |36.29032% ~40 s remaining 
+|===================                                 |36.55914% ~39 s remaining 
+|===================                                 |36.82796% ~39 s remaining 
+|===================                                 |37.09677% ~39 s remaining 
+|===================                                 |37.36559% ~38 s remaining 
+|===================                                 |37.63441% ~38 s remaining 
+|===================                                 |37.90323% ~38 s remaining 
+|===================                                 |38.17204% ~38 s remaining 
+|===================                                 |38.44086% ~37 s remaining 
+|====================                                |38.70968% ~37 s remaining 
+|====================                                |38.97849% ~37 s remaining 
+|====================                                |39.24731% ~36 s remaining 
+|====================                                |39.51613% ~36 s remaining 
+|====================                                |39.78495% ~36 s remaining 
+|====================                                |40.05376% ~35 s remaining 
+|====================                                |40.32258% ~35 s remaining 
+|=====================                               |40.5914% ~35 s remaining  
+|=====================                               |40.86022% ~35 s remaining 
+|=====================                               |41.12903% ~34 s remaining 
+|=====================                               |41.39785% ~34 s remaining 
+|=====================                               |41.66667% ~34 s remaining 
+|=====================                               |41.93548% ~34 s remaining 
+|=====================                               |42.2043% ~34 s remaining  
+|======================                              |42.47312% ~34 s remaining 
+|======================                              |42.74194% ~33 s remaining 
+|======================                              |43.01075% ~33 s remaining 
+|======================                              |43.27957% ~33 s remaining 
+|======================                              |43.54839% ~33 s remaining 
+|======================                              |43.8172% ~32 s remaining  
+|======================                              |44.08602% ~32 s remaining 
+|=======================                             |44.35484% ~32 s remaining 
+|=======================                             |44.62366% ~32 s remaining 
+|=======================                             |44.89247% ~31 s remaining 
+|=======================                             |45.16129% ~31 s remaining 
+|=======================                             |45.43011% ~31 s remaining 
+|=======================                             |45.69892% ~30 s remaining 
+|=======================                             |45.96774% ~30 s remaining 
+|========================                            |46.23656% ~30 s remaining 
+|========================                            |46.50538% ~30 s remaining 
+|========================                            |46.77419% ~30 s remaining 
+|========================                            |47.04301% ~29 s remaining 
+|========================                            |47.31183% ~29 s remaining 
+|========================                            |47.58065% ~29 s remaining 
+|========================                            |47.84946% ~29 s remaining 
+|=========================                           |48.11828% ~28 s remaining 
+|=========================                           |48.3871% ~28 s remaining  
+|=========================                           |48.65591% ~28 s remaining 
+|=========================                           |48.92473% ~28 s remaining 
+|=========================                           |49.19355% ~28 s remaining 
+|=========================                           |49.46237% ~27 s remaining 
+|=========================                           |49.73118% ~27 s remaining 
+|==========================                          | 50% ~27 s remaining      
+|==========================                          |50.26882% ~27 s remaining 
+|==========================                          |50.53763% ~26 s remaining 
+|==========================                          |50.80645% ~26 s remaining 
+|==========================                          |51.07527% ~26 s remaining 
+|==========================                          |51.34409% ~26 s remaining 
+|==========================                          |51.6129% ~26 s remaining  
+|==========================                          |51.88172% ~25 s remaining 
+|===========================                         |52.15054% ~25 s remaining 
+|===========================                         |52.41935% ~26 s remaining 
+|===========================                         |52.68817% ~25 s remaining 
+|===========================                         |52.95699% ~25 s remaining 
+|===========================                         |53.22581% ~25 s remaining 
+|===========================                         |53.49462% ~25 s remaining 
+|===========================                         |53.76344% ~24 s remaining 
+|============================                        |54.03226% ~24 s remaining 
+|============================                        |54.30108% ~24 s remaining 
+|============================                        |54.56989% ~24 s remaining 
+|============================                        |54.83871% ~24 s remaining 
+|============================                        |55.10753% ~23 s remaining 
+|============================                        |55.37634% ~23 s remaining 
+|============================                        |55.64516% ~23 s remaining 
+|=============================                       |55.91398% ~23 s remaining 
+|=============================                       |56.1828% ~23 s remaining  
+|=============================                       |56.45161% ~22 s remaining 
+|=============================                       |56.72043% ~22 s remaining 
+|=============================                       |56.98925% ~22 s remaining 
+|=============================                       |57.25806% ~22 s remaining 
+|=============================                       |57.52688% ~22 s remaining 
+|==============================                      |57.7957% ~21 s remaining  
+|==============================                      |58.06452% ~21 s remaining 
+|==============================                      |58.33333% ~21 s remaining 
+|==============================                      |58.60215% ~21 s remaining 
+|==============================                      |58.87097% ~21 s remaining 
+|==============================                      |59.13978% ~21 s remaining 
+|==============================                      |59.4086% ~20 s remaining  
+|===============================                     |59.67742% ~20 s remaining 
+|===============================                     |59.94624% ~20 s remaining 
+|===============================                     |60.21505% ~20 s remaining 
+|===============================                     |60.48387% ~20 s remaining 
+|===============================                     |60.75269% ~20 s remaining 
+|===============================                     |61.02151% ~19 s remaining 
+|===============================                     |61.29032% ~19 s remaining 
+|================================                    |61.55914% ~19 s remaining 
+|================================                    |61.82796% ~19 s remaining 
+|================================                    |62.09677% ~19 s remaining 
+|================================                    |62.36559% ~18 s remaining 
+|================================                    |62.63441% ~18 s remaining 
+|================================                    |62.90323% ~18 s remaining 
+|================================                    |63.17204% ~18 s remaining 
+|================================                    |63.44086% ~18 s remaining 
+|=================================                   |63.70968% ~18 s remaining 
+|=================================                   |63.97849% ~18 s remaining 
+|=================================                   |64.24731% ~17 s remaining 
+|=================================                   |64.51613% ~17 s remaining 
+|=================================                   |64.78495% ~17 s remaining 
+|=================================                   |65.05376% ~17 s remaining 
+|=================================                   |65.32258% ~17 s remaining 
+|==================================                  |65.5914% ~17 s remaining  
+|==================================                  |65.86022% ~17 s remaining 
+|==================================                  |66.12903% ~17 s remaining 
+|==================================                  |66.39785% ~16 s remaining 
+|==================================                  |66.66667% ~16 s remaining 
+|==================================                  |66.93548% ~16 s remaining 
+|==================================                  |67.2043% ~16 s remaining  
+|===================================                 |67.47312% ~16 s remaining 
+|===================================                 |67.74194% ~16 s remaining 
+|===================================                 |68.01075% ~16 s remaining 
+|===================================                 |68.27957% ~15 s remaining 
+|===================================                 |68.54839% ~15 s remaining 
+|===================================                 |68.8172% ~15 s remaining  
+|===================================                 |69.08602% ~15 s remaining 
+|====================================                |69.35484% ~15 s remaining 
+|====================================                |69.62366% ~15 s remaining 
+|====================================                |69.89247% ~14 s remaining 
+|====================================                |70.16129% ~14 s remaining 
+|====================================                |70.43011% ~14 s remaining 
+|====================================                |70.69892% ~14 s remaining 
+|====================================                |70.96774% ~14 s remaining 
+|=====================================               |71.23656% ~14 s remaining 
+|=====================================               |71.50538% ~14 s remaining 
+|=====================================               |71.77419% ~13 s remaining 
+|=====================================               |72.04301% ~13 s remaining 
+|=====================================               |72.31183% ~13 s remaining 
+|=====================================               |72.58065% ~13 s remaining 
+|=====================================               |72.84946% ~13 s remaining 
+|======================================              |73.11828% ~13 s remaining 
+|======================================              |73.3871% ~12 s remaining  
+|======================================              |73.65591% ~12 s remaining 
+|======================================              |73.92473% ~12 s remaining 
+|======================================              |74.19355% ~12 s remaining 
+|======================================              |74.46237% ~12 s remaining 
+|======================================              |74.73118% ~12 s remaining 
+|=======================================             | 75% ~12 s remaining      
+|=======================================             |75.26882% ~11 s remaining 
+|=======================================             |75.53763% ~11 s remaining 
+|=======================================             |75.80645% ~11 s remaining 
+|=======================================             |76.07527% ~11 s remaining 
+|=======================================             |76.34409% ~11 s remaining 
+|=======================================             |76.6129% ~11 s remaining  
+|=======================================             |76.88172% ~11 s remaining 
+|========================================            |77.15054% ~10 s remaining 
+|========================================            |77.41935% ~10 s remaining 
+|========================================            |77.68817% ~10 s remaining 
+|========================================            |77.95699% ~10 s remaining 
+|========================================            |78.22581% ~10 s remaining 
+|========================================            |78.49462% ~10 s remaining 
+|========================================            |78.76344% ~10 s remaining 
+|=========================================           |79.03226% ~10 s remaining 
+|=========================================           |79.30108% ~9 s remaining  
+|=========================================           |79.56989% ~9 s remaining  
+|=========================================           |79.83871% ~9 s remaining  
+|=========================================           |80.10753% ~9 s remaining  
+|=========================================           |80.37634% ~9 s remaining  
+|=========================================           |80.64516% ~9 s remaining  
+|==========================================          |80.91398% ~9 s remaining  
+|==========================================          |81.1828% ~9 s remaining   
+|==========================================          |81.45161% ~8 s remaining  
+|==========================================          |81.72043% ~8 s remaining  
+|==========================================          |81.98925% ~8 s remaining  
+|==========================================          |82.25806% ~8 s remaining  
+|==========================================          |82.52688% ~8 s remaining  
+|===========================================         |82.7957% ~8 s remaining   
+|===========================================         |83.06452% ~8 s remaining  
+|===========================================         |83.33333% ~7 s remaining  
+|===========================================         |83.60215% ~7 s remaining  
+|===========================================         |83.87097% ~7 s remaining  
+|===========================================         |84.13978% ~7 s remaining  
+|===========================================         |84.4086% ~7 s remaining   
+|============================================        |84.67742% ~7 s remaining  
+|============================================        |84.94624% ~7 s remaining  
+|============================================        |85.21505% ~7 s remaining  
+|============================================        |85.48387% ~6 s remaining  
+|============================================        |85.75269% ~6 s remaining  
+|============================================        |86.02151% ~6 s remaining  
+|============================================        |86.29032% ~6 s remaining  
+|=============================================       |86.55914% ~6 s remaining  
+|=============================================       |86.82796% ~6 s remaining  
+|=============================================       |87.09677% ~6 s remaining  
+|=============================================       |87.36559% ~6 s remaining  
+|=============================================       |87.63441% ~5 s remaining  
+|=============================================       |87.90323% ~5 s remaining  
+|=============================================       |88.17204% ~5 s remaining  
+|=============================================       |88.44086% ~5 s remaining  
+|==============================================      |88.70968% ~5 s remaining  
+|==============================================      |88.97849% ~5 s remaining  
+|==============================================      |89.24731% ~5 s remaining  
+|==============================================      |89.51613% ~5 s remaining  
+|==============================================      |89.78495% ~4 s remaining  
+|==============================================      |90.05376% ~4 s remaining  
+|==============================================      |90.32258% ~4 s remaining  
+|===============================================     |90.5914% ~4 s remaining   
+|===============================================     |90.86022% ~4 s remaining  
+|===============================================     |91.12903% ~4 s remaining  
+|===============================================     |91.39785% ~4 s remaining  
+|===============================================     |91.66667% ~4 s remaining  
+|===============================================     |91.93548% ~3 s remaining  
+|===============================================     |92.2043% ~3 s remaining   
+|================================================    |92.47312% ~3 s remaining  
+|================================================    |92.74194% ~3 s remaining  
+|================================================    |93.01075% ~3 s remaining  
+|================================================    |93.27957% ~3 s remaining  
+|================================================    |93.54839% ~3 s remaining  
+|================================================    |93.8172% ~3 s remaining   
+|================================================    |94.08602% ~3 s remaining  
+|=================================================   |94.35484% ~2 s remaining  
+|=================================================   |94.62366% ~2 s remaining  
+|=================================================   |94.89247% ~2 s remaining  
+|=================================================   |95.16129% ~2 s remaining  
+|=================================================   |95.43011% ~2 s remaining  
+|=================================================   |95.69892% ~2 s remaining  
+|=================================================   |95.96774% ~2 s remaining  
+|==================================================  |96.23656% ~2 s remaining  
 |==================================================  |96.50538% ~1 s remaining  
 |==================================================  |96.77419% ~1 s remaining  
 |==================================================  |97.04301% ~1 s remaining  
-|==================================================  |97.31183% ~0 s remaining  
-|==================================================  |97.58065% ~0 s remaining  
-|==================================================  |97.84946% ~0 s remaining  
-|=================================================== |98.11828% ~0 s remaining  
-|=================================================== |98.3871% ~0 s remaining   
-|=================================================== |98.65591% ~0 s remaining  
+|==================================================  |97.31183% ~1 s remaining  
+|==================================================  |97.58065% ~1 s remaining  
+|==================================================  |97.84946% ~1 s remaining  
+|=================================================== |98.11828% ~1 s remaining  
+|=================================================== |98.3871% ~1 s remaining   
+|=================================================== |98.65591% ~1 s remaining  
 |=================================================== |98.92473% ~0 s remaining  
 |=================================================== |99.19355% ~0 s remaining  
 |=================================================== |99.46237% ~0 s remaining  
 |=================================================== |99.73118% ~0 s remaining  
 |====================================================|100% ~0 s remaining       
-|====================================================|100%                      Completed after 17 s </code></pre>
+|====================================================|100%                      Completed after 43 s </code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gc</span>()  <span class="co"># free unused memory (i.e. garbage collect)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb28"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb28-1"><a href="#cb28-1" aria-hidden="true" tabindex="-1"></a><span class="fu">gc</span>() <span class="co"># free unused memory (i.e. garbage collect)</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>            used  (Mb) gc trigger   (Mb)  max used   (Mb)
-Ncells   8274720 442.0   14651038  782.5  14651038  782.5
-Vcells 118925750 907.4  524404602 4000.9 655466360 5000.9</code></pre>
+Ncells   8279657 442.2   14671220  783.6  14671220  783.6
+Vcells 118949694 907.6  524417096 4001.0 655478773 5001.0</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb30"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb30-1"><a href="#cb30-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;SummarizedExperiment object loaded successfully</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -3265,23 +3265,23 @@ Tumor subtype info columns:</code></pre>
  [18] &quot;initial_weight&quot;                                     
  [19] &quot;tissue_type&quot;                                        
  [20] &quot;preservation_method&quot;                                
- [21] &quot;morphology&quot;                                         
+ [21] &quot;synchronous_malignancy&quot;                             
  [22] &quot;days_to_diagnosis&quot;                                  
  [23] &quot;treatments&quot;                                         
  [24] &quot;tissue_or_organ_of_origin&quot;                          
  [25] &quot;age_at_diagnosis&quot;                                   
  [26] &quot;primary_diagnosis&quot;                                  
- [27] &quot;classification_of_tumor&quot;                            
- [28] &quot;tumor_of_origin&quot;                                    
- [29] &quot;diagnosis_id&quot;                                       
- [30] &quot;site_of_resection_or_biopsy&quot;                        
- [31] &quot;prior_treatment&quot;                                    
- [32] &quot;diagnosis_is_primary_disease&quot;                       
- [33] &quot;synchronous_malignancy&quot;                             
- [34] &quot;prior_malignancy&quot;                                   
- [35] &quot;year_of_diagnosis&quot;                                  
- [36] &quot;method_of_diagnosis&quot;                                
- [37] &quot;icd_10_code&quot;                                        
+ [27] &quot;prior_malignancy&quot;                                   
+ [28] &quot;year_of_diagnosis&quot;                                  
+ [29] &quot;prior_treatment&quot;                                    
+ [30] &quot;diagnosis_is_primary_disease&quot;                       
+ [31] &quot;method_of_diagnosis&quot;                                
+ [32] &quot;morphology&quot;                                         
+ [33] &quot;classification_of_tumor&quot;                            
+ [34] &quot;diagnosis_id&quot;                                       
+ [35] &quot;icd_10_code&quot;                                        
+ [36] &quot;site_of_resection_or_biopsy&quot;                        
+ [37] &quot;tumor_of_origin&quot;                                    
  [38] &quot;days_to_last_follow_up&quot;                             
  [39] &quot;follow_ups_disease_response&quot;                        
  [40] &quot;race&quot;                                               
@@ -3292,8 +3292,8 @@ Tumor subtype info columns:</code></pre>
  [45] &quot;demographic_id&quot;                                     
  [46] &quot;age_is_obfuscated&quot;                                  
  [47] &quot;sex_at_birth&quot;                                       
- [48] &quot;days_to_death&quot;                                      
- [49] &quot;country_of_residence_at_enrollment&quot;                 
+ [48] &quot;country_of_residence_at_enrollment&quot;                 
+ [49] &quot;days_to_death&quot;                                      
  [50] &quot;bcr_patient_barcode&quot;                                
  [51] &quot;primary_site&quot;                                       
  [52] &quot;project_id&quot;                                         
@@ -3521,9 +3521,9 @@ Autonomic ganglia</strong> are essentially <strong>collections of synapses</stro
 First few rows (samples) and columns (tumor subtype info):</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb56"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb56-1"><a href="#cb56-1" aria-hidden="true" tabindex="-1"></a><span class="fu">colData</span>(se) <span class="sc">%&gt;%</span></span>
-<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
-<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>  .[<span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>] <span class="sc">%&gt;%</span></span>
-<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>  knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb56-2"><a href="#cb56-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb56-3"><a href="#cb56-3" aria-hidden="true" tabindex="-1"></a>    .[<span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">5</span>] <span class="sc">%&gt;%</span></span>
+<span id="cb56-4"><a href="#cb56-4" aria-hidden="true" tabindex="-1"></a>    knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <colgroup>
@@ -3546,42 +3546,42 @@ First few rows (samples) and columns (tumor subtype info):</code></pre>
 </thead>
 <tbody>
 <tr class="odd">
-<td style="text-align: left;">TCGA-06-6390-01A-11R-A96S-41</td>
-<td style="text-align: left;">TCGA-06-6390-01A-11R-A96S-41</td>
-<td style="text-align: left;">TCGA-06-6390</td>
-<td style="text-align: left;">TCGA-06-6390-01A</td>
+<td style="text-align: left;">TCGA-32-5222-01A-01R-1850-01</td>
+<td style="text-align: left;">TCGA-32-5222-01A-01R-1850-01</td>
+<td style="text-align: left;">TCGA-32-5222</td>
+<td style="text-align: left;">TCGA-32-5222-01A</td>
 <td style="text-align: left;">TP</td>
 <td style="text-align: left;">Primary solid Tumor</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">TCGA-06-5411-01A-01R-1849-01</td>
-<td style="text-align: left;">TCGA-06-5411-01A-01R-1849-01</td>
-<td style="text-align: left;">TCGA-06-5411</td>
-<td style="text-align: left;">TCGA-06-5411-01A</td>
+<td style="text-align: left;">TCGA-12-3646-01A-01R-A96T-41</td>
+<td style="text-align: left;">TCGA-12-3646-01A-01R-A96T-41</td>
+<td style="text-align: left;">TCGA-12-3646</td>
+<td style="text-align: left;">TCGA-12-3646-01A</td>
 <td style="text-align: left;">TP</td>
 <td style="text-align: left;">Primary solid Tumor</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">TCGA-06-5411-01A-01R-A96S-41</td>
-<td style="text-align: left;">TCGA-06-5411-01A-01R-A96S-41</td>
-<td style="text-align: left;">TCGA-06-5411</td>
-<td style="text-align: left;">TCGA-06-5411-01A</td>
+<td style="text-align: left;">TCGA-12-0670-01B-01R-A96S-41</td>
+<td style="text-align: left;">TCGA-12-0670-01B-01R-A96S-41</td>
+<td style="text-align: left;">TCGA-12-0670</td>
+<td style="text-align: left;">TCGA-12-0670-01B</td>
 <td style="text-align: left;">TP</td>
 <td style="text-align: left;">Primary solid Tumor</td>
 </tr>
 <tr class="even">
-<td style="text-align: left;">TCGA-12-3648-01A-01R-A96T-41</td>
-<td style="text-align: left;">TCGA-12-3648-01A-01R-A96T-41</td>
-<td style="text-align: left;">TCGA-12-3648</td>
-<td style="text-align: left;">TCGA-12-3648-01A</td>
+<td style="text-align: left;">TCGA-19-2629-01A-01R-A96U-41</td>
+<td style="text-align: left;">TCGA-19-2629-01A-01R-A96U-41</td>
+<td style="text-align: left;">TCGA-19-2629</td>
+<td style="text-align: left;">TCGA-19-2629-01A</td>
 <td style="text-align: left;">TP</td>
 <td style="text-align: left;">Primary solid Tumor</td>
 </tr>
 <tr class="odd">
-<td style="text-align: left;">TCGA-06-A7TK-01A-21R-A96S-41</td>
-<td style="text-align: left;">TCGA-06-A7TK-01A-21R-A96S-41</td>
-<td style="text-align: left;">TCGA-06-A7TK</td>
-<td style="text-align: left;">TCGA-06-A7TK-01A</td>
+<td style="text-align: left;">TCGA-06-0743-01A-01R-1849-01</td>
+<td style="text-align: left;">TCGA-06-0743-01A-01R-1849-01</td>
+<td style="text-align: left;">TCGA-06-0743</td>
+<td style="text-align: left;">TCGA-06-0743-01A</td>
 <td style="text-align: left;">TP</td>
 <td style="text-align: left;">Primary solid Tumor</td>
 </tr>
@@ -3607,7 +3607,9 @@ First few rows (samples) and columns (tumor subtype info):</code></pre>
 <pre><code>
 First 6 rows of gene metadata:</code></pre>
 </div>
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">rowData</span>(se)) <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span> knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb63"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb63-1"><a href="#cb63-1" aria-hidden="true" tabindex="-1"></a><span class="fu">head</span>(<span class="fu">rowData</span>(se)) <span class="sc">%&gt;%</span></span>
+<span id="cb63-2"><a href="#cb63-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">as.data.frame</span>() <span class="sc">%&gt;%</span></span>
+<span id="cb63-3"><a href="#cb63-3" aria-hidden="true" tabindex="-1"></a>    knitr<span class="sc">::</span><span class="fu">kable</span>()</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output-display">
 <table class="caption-top table table-sm table-striped small">
 <colgroup>
@@ -3756,14 +3758,14 @@ First 3 genes, first 3 samples:</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb72"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb72-1"><a href="#cb72-1" aria-hidden="true" tabindex="-1"></a>counts_matrix[<span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>, <span class="dv">1</span><span class="sc">:</span><span class="dv">3</span>]</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>                   TCGA-06-6390-01A-11R-A96S-41 TCGA-06-5411-01A-01R-1849-01
-ENSG00000000003.15                         2934                         2345
-ENSG00000000005.6                            10                            9
-ENSG00000000419.13                          762                         1843
-                   TCGA-06-5411-01A-01R-A96S-41
-ENSG00000000003.15                         1550
-ENSG00000000005.6                             3
-ENSG00000000419.13                         1180</code></pre>
+<pre><code>                   TCGA-32-5222-01A-01R-1850-01 TCGA-12-3646-01A-01R-A96T-41
+ENSG00000000003.15                         6900                         3131
+ENSG00000000005.6                             8                            2
+ENSG00000000419.13                         2500                         1002
+                   TCGA-12-0670-01B-01R-A96S-41
+ENSG00000000003.15                         4510
+ENSG00000000005.6                            13
+ENSG00000000419.13                          931</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb74"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb74-1"><a href="#cb74-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Count value summary:</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -3811,7 +3813,7 @@ ENSG00000000419.13                         1180</code></pre>
 <h3 class="anchored" data-anchor-id="save-raw-counts-matrix">4.1. Save Raw Counts Matrix</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb92"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb92-1"><a href="#cb92-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Save counts matrix</span></span>
-<span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(counts_matrix, <span class="st">&quot;../01_data/02_processed/01_raw_counts_matrix.rds&quot;</span>)</span>
+<span id="cb92-2"><a href="#cb92-2" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(counts_matrix, here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;02_processed&quot;</span>, <span class="st">&quot;01_raw_counts_matrix.rds&quot;</span>))</span>
 <span id="cb92-3"><a href="#cb92-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved: 01_raw_counts_matrix.rds</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Saved: 01_raw_counts_matrix.rds</code></pre>
@@ -3822,7 +3824,7 @@ ENSG00000000419.13                         1180</code></pre>
 <h3 class="anchored" data-anchor-id="save-tumor-subtype-information">4.2. Save Tumor Subtype Information</h3>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb94"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb94-1"><a href="#cb94-1" aria-hidden="true" tabindex="-1"></a>tumor_subtype_info <span class="ot">&lt;-</span> <span class="fu">colData</span>(se) <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span>
-<span id="cb94-2"><a href="#cb94-2" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(tumor_subtype_info, <span class="st">&quot;../01_data/02_processed/02_tumor_subtype_info.rds&quot;</span>)</span>
+<span id="cb94-2"><a href="#cb94-2" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(tumor_subtype_info, here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;02_processed&quot;</span>, <span class="st">&quot;02_tumor_subtype_info.rds&quot;</span>))</span>
 <span id="cb94-3"><a href="#cb94-3" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved: 02_tumor_subtype_info.rds</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Saved: 02_tumor_subtype_info.rds</code></pre>
@@ -3834,7 +3836,7 @@ ENSG00000000419.13                         1180</code></pre>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb96"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb96-1"><a href="#cb96-1" aria-hidden="true" tabindex="-1"></a><span class="co"># Save gene metadata — needed later for Ensembl ID to gene symbol mapping</span></span>
 <span id="cb96-2"><a href="#cb96-2" aria-hidden="true" tabindex="-1"></a>gene_metadata <span class="ot">&lt;-</span> <span class="fu">rowData</span>(se) <span class="sc">%&gt;%</span> <span class="fu">as.data.frame</span>()</span>
-<span id="cb96-3"><a href="#cb96-3" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(gene_metadata, <span class="st">&quot;../01_data/02_processed/03_gene_metadata.rds&quot;</span>)</span>
+<span id="cb96-3"><a href="#cb96-3" aria-hidden="true" tabindex="-1"></a><span class="fu">saveRDS</span>(gene_metadata, here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;02_processed&quot;</span>, <span class="st">&quot;03_gene_metadata.rds&quot;</span>))</span>
 <span id="cb96-4"><a href="#cb96-4" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Saved: 03_gene_metadata.rds</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>Saved: 03_gene_metadata.rds</code></pre>
@@ -3845,9 +3847,9 @@ ENSG00000000419.13                         1180</code></pre>
 <section id="perform-sanity-checks" class="level2">
 <h2 class="anchored" data-anchor-id="perform-sanity-checks">5. Perform Sanity Checks</h2>
 <div class="cell">
-<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb98"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a>counts_exists      <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(<span class="st">&quot;../01_data/02_processed/01_raw_counts_matrix.rds&quot;</span>)</span>
-<span id="cb98-2"><a href="#cb98-2" aria-hidden="true" tabindex="-1"></a>subtype_info_exists <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(<span class="st">&quot;../01_data/02_processed/02_tumor_subtype_info.rds&quot;</span>)</span>
-<span id="cb98-3"><a href="#cb98-3" aria-hidden="true" tabindex="-1"></a>gene_meta_exists   <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(<span class="st">&quot;../01_data/02_processed/03_gene_metadata.rds&quot;</span>)</span>
+<div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb98"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb98-1"><a href="#cb98-1" aria-hidden="true" tabindex="-1"></a>counts_exists <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;02_processed&quot;</span>, <span class="st">&quot;01_raw_counts_matrix.rds&quot;</span>))</span>
+<span id="cb98-2"><a href="#cb98-2" aria-hidden="true" tabindex="-1"></a>subtype_info_exists <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;02_processed&quot;</span>, <span class="st">&quot;02_tumor_subtype_info.rds&quot;</span>))</span>
+<span id="cb98-3"><a href="#cb98-3" aria-hidden="true" tabindex="-1"></a>gene_meta_exists <span class="ot">&lt;-</span> <span class="fu">file.exists</span>(here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;02_processed&quot;</span>, <span class="st">&quot;03_gene_metadata.rds&quot;</span>))</span>
 <span id="cb98-4"><a href="#cb98-4" aria-hidden="true" tabindex="-1"></a></span>
 <span id="cb98-5"><a href="#cb98-5" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;Raw counts matrix saved:     &quot;</span>, <span class="fu">ifelse</span>(counts_exists, <span class="st">&quot;✓&quot;</span>, <span class="st">&quot;✗&quot;</span>), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -3862,9 +3864,9 @@ ENSG00000000419.13                         1180</code></pre>
 <pre><code>Gene metadata saved:          ✓ </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb104"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb104-1"><a href="#cb104-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (counts_exists <span class="sc">&amp;&amp;</span> subtype_info_exists <span class="sc">&amp;&amp;</span> gene_meta_exists) {</span>
-<span id="cb104-2"><a href="#cb104-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Notebook 02 complete — all outputs verified</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb104-2"><a href="#cb104-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">Notebook 02 complete — all outputs verified</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb104-3"><a href="#cb104-3" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
-<span id="cb104-4"><a href="#cb104-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">WARNING: One or more outputs missing</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb104-4"><a href="#cb104-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">WARNING: One or more outputs missing</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb104-5"><a href="#cb104-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>

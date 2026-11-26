@@ -108,7 +108,7 @@ cat("broom version:         ", as.character(packageVersion("broom")), "\n")
 #| label: load_filtered_counts_matrix
 
 
-filtered_counts_matrix <- readRDS("../01_data/02_processed/04_filtered_counts_matrix.rds")
+filtered_counts_matrix <- readRDS(here::here("01_data", "02_processed", "04_filtered_counts_matrix.rds"))
 cat("Filtered counts matrix loaded:", nrow(filtered_counts_matrix), "genes x", ncol(filtered_counts_matrix), "samples\n")
 ```
 
@@ -118,7 +118,7 @@ cat("Filtered counts matrix loaded:", nrow(filtered_counts_matrix), "genes x", n
 #| label: load_filtered_tumor_subtype_info
 
 
-tumor_subtype_info <- readRDS("../01_data/02_processed/05_filtered_tumor_subtype_info.rds")
+tumor_subtype_info <- readRDS(here::here("01_data", "02_processed", "05_filtered_tumor_subtype_info.rds"))
 cat("Filtered tumor subtype info loaded:", nrow(tumor_subtype_info), "samples\n")
 cat("\nColumn names:\n")
 print(colnames(tumor_subtype_info))
@@ -130,7 +130,7 @@ print(colnames(tumor_subtype_info))
 #| label: load_clinical_metadata
 
 
-clinical_metadata <- readRDS("../01_data/01_raw/02_clinical/01_clinical_metadata.rds")
+clinical_metadata <- readRDS(here::here("01_data", "01_raw", "02_clinical", "01_clinical_metadata.rds"))
 cat("Clinical metadata loaded:", nrow(clinical_metadata), "patients\n")
 cat("\nColumn names:\n")
 print(colnames(clinical_metadata))
@@ -144,15 +144,15 @@ print(colnames(clinical_metadata))
 #| label: load_pathway_enrichment_results
 
 
-ora_consensus_up_go     <- read_csv("../04_results/06_pathway_enrichment/01_ora/01_ora_consensus_upregulated_gobp.csv")
-ora_consensus_up_kegg   <- read_csv("../04_results/06_pathway_enrichment/01_ora/02_ora_consensus_upregulated_kegg.csv")
-ora_consensus_down_go   <- read_csv("../04_results/06_pathway_enrichment/01_ora/03_ora_consensus_downregulated_gobp.csv")
-ora_consensus_down_kegg <- read_csv("../04_results/06_pathway_enrichment/01_ora/04_ora_consensus_downregulated_kegg.csv")
+ora_consensus_up_go       <- read_csv(here::here("04_results", "06_pathway_enrichment", "01_ora", "01_ora_consensus_upregulated_gobp.csv"))
+ora_consensus_up_kegg     <- read_csv(here::here("04_results", "06_pathway_enrichment", "01_ora", "02_ora_consensus_upregulated_kegg.csv"))
+ora_consensus_down_go     <- read_csv(here::here("04_results", "06_pathway_enrichment", "01_ora", "03_ora_consensus_downregulated_gobp.csv"))
+ora_consensus_down_kegg   <- read_csv(here::here("04_results", "06_pathway_enrichment", "01_ora", "04_ora_consensus_downregulated_kegg.csv"))
 
-gsea_consensus_up_go     <- read_csv("../04_results/06_pathway_enrichment/02_gsea/01_gsea_consensus_upregulated_gobp.csv")
-gsea_consensus_up_kegg   <- read_csv("../04_results/06_pathway_enrichment/02_gsea/02_gsea_consensus_upregulated_kegg.csv")
-gsea_consensus_down_go   <- read_csv("../04_results/06_pathway_enrichment/02_gsea/03_gsea_consensus_downregulated_gobp.csv")
-gsea_consensus_down_kegg <- read_csv("../04_results/06_pathway_enrichment/02_gsea/04_gsea_consensus_downregulated_kegg.csv")
+gsea_consensus_up_go      <- read_csv(here::here("04_results", "06_pathway_enrichment", "02_gsea", "01_gsea_consensus_upregulated_gobp.csv"))
+gsea_consensus_up_kegg    <- read_csv(here::here("04_results", "06_pathway_enrichment", "02_gsea", "02_gsea_consensus_upregulated_kegg.csv"))
+gsea_consensus_down_go    <- read_csv(here::here("04_results", "06_pathway_enrichment", "02_gsea", "03_gsea_consensus_downregulated_gobp.csv"))
+gsea_consensus_down_kegg  <- read_csv(here::here("04_results", "06_pathway_enrichment", "02_gsea", "04_gsea_consensus_downregulated_kegg.csv"))
 
 
 
@@ -174,16 +174,25 @@ cat("GSEA downregulated KEGG terms:  ", nrow(gsea_consensus_down_kegg), "\n")
 #| label: load_deconvolution_results
 
 
-deconv_primary_df      <- readRDS("../04_results/07_deconvolution/01_primary_deconvolution_results.rds")
-deconv_confirmatory_df <- readRDS("../04_results/07_deconvolution/02_confirmatory_deconvolution_results.rds")
+deconv_primary_df      <- readRDS(here::here("04_results", "07_deconvolution", "01_primary_deconvolution_results.rds"))
+deconv_confirmatory_df <- readRDS(here::here("04_results", "07_deconvolution", "02_confirmatory_deconvolution_results.rds"))
 
 cat("Primary deconvolution results:     ", dim(deconv_primary_df), "\n")
 cat("Confirmatory deconvolution results:", dim(deconv_confirmatory_df), "\n")
 
+
+
+
+# Exclude the first column, i.e. sample IDs, when printing cell type names
+# The [-1] as seen below is used to exclude the first item from the output, the output being the character vector of the DataFrame column names
+# The minus means exclude, the 1 means the 1st item
+# Character vector in R is equivalent to list(str) in Python
+
 cat("\nPrimary deconvolution cell types:\n")
-print(colnames(deconv_primary_df))
+print(colnames(deconv_primary_df)[-1])
+
 cat("\n\nConfirmatory deconvolution cell types:\n")
-print(colnames(deconv_confirmatory_df))
+print(colnames(deconv_confirmatory_df)[-1])
 ```
 
 ## 3. Refine Inputs For Cox Proportional Hazards Model
@@ -319,13 +328,13 @@ pathway_analysis_results_integrated_summary <- data.frame(
   Direction = c("Up in ME", "Down in ME (Up in PN)"),
 
   `Top 5 ORA Pathways` = c(
-    paste(ora_consensus_up_go_sig$Description[1:5],   collapse = "; "),
-    paste(ora_consensus_down_go_sig$Description[1:5], collapse = "; ")
+    paste0(ora_consensus_up_go_sig$Description[1:5],   collapse = "<br>"),
+    paste0(ora_consensus_down_go_sig$Description[1:5], collapse = "<br>")
   ),
 
   `Top 5 GSEA Pathways` = c(
-    paste(gsea_consensus_up_go_sig$Description[1:5],   collapse = "; "),
-    paste(gsea_consensus_down_go_sig$Description[1:5], collapse = "; ")
+    paste0(gsea_consensus_up_go_sig$Description[1:5],   collapse = "<br>"),
+    paste0(gsea_consensus_down_go_sig$Description[1:5], collapse = "<br>")
   ),
 
   `Biological Theme` = c(
@@ -340,7 +349,7 @@ cat("Integrated ORA + GSEA Summary:\n")
 pathway_analysis_results_integrated_summary %>% knitr::kable()
 ```
 
-### 3.2. Score Pathway Activity Per Sample Using GSVA
+### 3.2. Score Theme Pathway Activity Per Sample Using GSVA
 
 **NOTE**: GSVA stands for **Gene Set Variation Analysis**, which is a tool that **scores the activities of a given set of pathways,** and does it so **per-sample** (in **contrast to pathway enrichment**, which is broader as it is done **per group**).
 
@@ -456,10 +465,10 @@ cat("\nValue range:\n")
 print(summary(as.vector(log_cpm_matrix)))
 ```
 
-#### 3.2.4. Run GSVA To Compute Per-Sample Pathway Activity Scores
+#### 3.2.4. Run GSVA To Compute Per-Sample Theme Pathway Activity Scores
 
 ```{r}
-#| label: run_gsva_to_compute_per_sample_pathway_activity_scores
+#| label: run_gsva_to_compute_per_sample_theme_pathway_activity_scores
 
 
 # build GSVA parameter object and run
@@ -479,7 +488,7 @@ cat("\nScore range:\n")
 print(summary(as.vector(gsva_scores)))
 ```
 
-### 3.3. Correlate Pathway Activity With Cell Type Abundance Scores
+### 3.3. Correlate Theme Pathway Activity With Cell Type Abundance Scores
 
 #### 3.3.1. Integrate GSVA Scores With Deconvolution Cell Type Abundance Scores
 
@@ -509,10 +518,10 @@ print(
 )
 ```
 
-#### 3.3.2. Correlate Pathway Activity With Cell Type Abundance Scores
+#### 3.3.2. Correlate Theme Pathway Activity With Cell Type Abundance Scores
 
 ```{r}
-#| label: correlate_pathway_activity_with_cell_type_abundance_scores
+#| label: correlate_theme_pathway_activity_with_cell_type_abundance_scores
 
 
 cell_type_cols <- c(
@@ -590,29 +599,15 @@ cat(
 )
 ```
 
-```{r}
-#| label: diagnose_actual_selected_pathways
-
-
-cat("Actual MesWoundHealing pathway columns present:\n")
-print(grep("^MesWoundHealing__", colnames(gsva_pathway_integration_df), value = TRUE))
-
-cat("\nActual Proliferation pathway columns present:\n")
-print(grep("^Proliferation__", colnames(gsva_pathway_integration_df), value = TRUE))
-
-cat("\nActual Neural pathway columns present:\n")
-print(grep("^Neural__", colnames(gsva_pathway_integration_df), value = TRUE))
-```
-
-#### 3.3.3. Plot Heatmap Of Pathway-Cell Type Correlations
+#### 3.3.3. Plot Heatmap Of Theme Pathway-Cell Type Correlations
 
 ```{r}
-#| label: plot_heatmap_of_pathway_celltype_correlations
+#| label: plot_heatmap_of_theme_pathway_cell_type_correlations
 #| fig-width: 20
 #| fig-height: 8
 
 
-# clean up pathway labels for display: strip theme prefix and replace dots with spaces
+# clean up theme pathway labels for display: strip theme prefix and replace dots with spaces
 heatmap_data <- correlation_by_subtype %>%
   mutate(
     Theme = case_when(
@@ -628,7 +623,7 @@ heatmap_data <- correlation_by_subtype %>%
 
 
 # plot side-by-side heatmaps, one per subtype
-pathway_celltype_correlation_heatmap <- ggplot(
+theme_pathway_cell_type_correlation_heatmap <- ggplot(
   heatmap_data,
     aes(
       x    = CellType,
@@ -659,10 +654,10 @@ pathway_celltype_correlation_heatmap <- ggplot(
   ) +
   
   labs(
-    title    = "Pathway Activity (GSVA) vs Cell Type Abundance: Spearman Correlations",
+    title    = "Theme Pathway Activity (GSVA) vs Cell Type Abundance: Spearman Correlations",
     subtitle = "Computed separately within PN (n=55) and ME (n=125) samples",
     x        = "Cell Type (Deconvolution)",
-    y        = "Pathway (GSVA Score)"
+    y        = "Theme Pathway (GSVA Score)"
   ) +
   
   theme_minimal() +
@@ -679,13 +674,21 @@ pathway_celltype_correlation_heatmap <- ggplot(
     plot.title      = element_text(face = "bold", hjust = 0.5),
     plot.subtitle   = element_text(hjust = 0.5, color = "grey40"),
     
-    legend.position = "right"
+    legend.position = "right",
+
+    # adjust plot margins
+    plot.margin = margin(
+      t = 5.5,
+      r = 5.5,
+      b = 5.5,
+      l = 5.5
+    )
   )
 
-pathway_celltype_correlation_heatmap
+theme_pathway_cell_type_correlation_heatmap
 ```
 
-The heatmap reveals that the **relationship between cell type abundance and pathway activity is consistent across both subtypes**. The **correlation patterns** are **strikingly similar in ME and PN samples**, indicating that these biological associations are a **general property of GBM tumors** rather than subtype-specific phenomena.
+The heatmap reveals that the **relationship between cell type abundance and theme pathway activity is consistent across both subtypes**. The **correlation patterns** are **strikingly similar in ME and PN samples**, indicating that these biological associations are a **general property of GBM tumors** rather than subtype-specific phenomena.
 
 **Key findings** across **both subtypes**:
 
@@ -693,13 +696,13 @@ The heatmap reveals that the **relationship between cell type abundance and path
 
     -   **Correlate strongly** and **positively** with **TAM**, **Microglia**, **Monocytes**, and **DC (i.e. Dendritic Cells).**
 
-    -   This pinpoints **myeloid lineage cells** specifically as the **drivers of the immune/inflammatory signal, rather than lymphocytes** (T/B/NK cells show weaker correlation.
+    -   This pinpoints **myeloid lineage cells** specifically as the **drivers of the immune/inflammatory signal, rather than lymphocytes** (T/B/NK cells show weaker correlation).
 
 -   **Neural identity pathways**:
 
     -   **Correlate positively** with **NPC (i.e. Neural Progenitor Cell)**, **Neuron**, and **Oligodendrocyte.**
 
-    -   This confirmS that **neural cell types** track the neural pathway signal at the individual sample level.
+    -   This confirms that **neural cell types** track the neural pathway signal at the individual sample level.
 
 -   **Cell cycle/proliferation pathways**:
 
@@ -851,8 +854,8 @@ The **outcome variable is overall survival**, defined as **time from diagnosis t
 ```{r}
 #| label: select_cox_model_inputs
 
-# pathway-pathway score correlations
-# compute pairwise Spearman correlations between all GSVA pathway scores
+# theme pathway-theme pathway score correlations
+# compute pairwise Spearman correlations between all GSVA theme pathway scores
 # using the full 180-sample dataset (not the subtype-split dataset, since overall redundancy is required)
 gsva_score_cols <- pathway_cols
 
@@ -954,7 +957,7 @@ selected_pathways  <- greedy_select(pathway_importance,  gsva_cor_matrix,
 selected_celltypes <- greedy_select(celltype_importance, celltype_cor_matrix,
                                     max_cor_threshold = 0.7, min_importance = 0.3)
 
-cat("Selected GSVA pathways (non-redundant, greedy forward selection):\n")
+cat("Selected GSVA theme pathways (non-redundant, greedy forward selection):\n")
 print(selected_pathways)
 
 cat("\nSelected cell types (non-redundant, greedy forward selection):\n")
@@ -1395,19 +1398,19 @@ The **global test (`p = 0.426`)** **confirms** that the **model as a whole does 
 # integrated pathway analysis summary table
 write_csv(
   pathway_analysis_results_integrated_summary,
-  "../04_results/08_integration_and_interpretation/01_pathway_analysis_integrated_summary.csv"
+  here::here("04_results", "08_integration_and_interpretation", "01_pathway_analysis_integrated_summary.csv")
 )
 
 # gsva per-sample pathway activity scores
 saveRDS(
   gsva_scores,
-  "../04_results/08_integration_and_interpretation/02_gsva_pathway_activity_scores.rds"
+  here::here("04_results", "08_integration_and_interpretation", "02_gsva_pathway_activity_scores.rds")
 )
 
 # pathway-celltype correlation results
 write_csv(
   correlation_by_subtype,
-  "../04_results/08_integration_and_interpretation/03_pathway_celltype_correlation_results.csv"
+  here::here("04_results", "08_integration_and_interpretation", "03_theme_pathway_cell_type_correlation_results.csv")
 )
 
 
@@ -1415,7 +1418,7 @@ write_csv(
 # patient survival data
 write_csv(
   patient_survival_data,
-  "../04_results/08_integration_and_interpretation/04_patient_survival_data.csv"
+  here::here("04_results", "08_integration_and_interpretation", "04_patient_survival_data.csv")
 )
 
 
@@ -1423,13 +1426,13 @@ write_csv(
 # fitted cox model object
 saveRDS(
   cox_model,
-  "../04_results/08_integration_and_interpretation/05_cox_model.rds"
+  here::here("04_results", "08_integration_and_interpretation", "05_cox_model.rds")
 )
 
 # cox model results (hazard ratios, CIs, p-values)
 write_csv(
   cox_results,
-  "../04_results/08_integration_and_interpretation/06_cox_model_results.csv"
+  here::here("04_results", "08_integration_and_interpretation", "06_cox_model_results.csv")
 )
 
 
@@ -1437,7 +1440,7 @@ write_csv(
 # schoenfeld residuals test object
 saveRDS(
   schoenfeld_residuals_ph_test,
-  "../04_results/08_integration_and_interpretation/07_schoenfeld_residuals_test.rds"
+  here::here("04_results", "08_integration_and_interpretation", "07_schoenfeld_residuals_test.rds")
 )
 
 cat("Saved 4 CSV files and 3 RDS files.")
@@ -1451,8 +1454,8 @@ cat("Saved 4 CSV files and 3 RDS files.")
 
 # pathway-celltype correlation heatmap
 ggsave(
-  "../03_figures/08_integration_and_interpretation/01_pathway_celltype_correlation_heatmap.png",
-  plot   = pathway_celltype_correlation_heatmap,
+  here::here("03_figures", "08_integration_and_interpretation", "01_theme_pathway_cell_type_correlation_heatmap.png"),
+  plot   = theme_pathway_cell_type_correlation_heatmap,
   width  = 20,
   height = 8,
   dpi    = 300
@@ -1460,7 +1463,7 @@ ggsave(
 
 # kaplan-meier survival curves plot
 png(
-  "../03_figures/08_integration_and_interpretation/02_km_survival_curves.png",
+  here::here("03_figures", "08_integration_and_interpretation", "02_km_survival_curves.png"),
   width  = 8,
   height = 8,
   units  = "in",
@@ -1471,7 +1474,7 @@ dev.off()
 
 # cox model forest plot
 ggsave(
-  "../03_figures/08_integration_and_interpretation/03_cox_forest_plot.png",
+  here::here("03_figures", "08_integration_and_interpretation", "03_cox_forest_plot.png"),
   plot   = cox_forest_plot,
   width  = 10,
   height = 6,
@@ -1480,7 +1483,7 @@ ggsave(
 
 # schoenfeld residuals plot
 png(
-  "../03_figures/08_integration_and_interpretation/04_schoenfeld_residuals.png",
+  here::here("03_figures", "08_integration_and_interpretation", "04_schoenfeld_residuals.png"),
   width  = 15,
   height = 8,
   units  = "in",
@@ -1508,48 +1511,48 @@ cat("Saved 4 plots.")
 
 
 # data files
-pathway_analysis_integrated_summary_exists  <- file.exists("../04_results/08_integration_and_interpretation/01_pathway_analysis_integrated_summary.csv")
-gsva_pathway_activity_scores_exists         <- file.exists("../04_results/08_integration_and_interpretation/02_gsva_pathway_activity_scores.rds")
-pathway_celltype_correlation_results_exists <- file.exists("../04_results/08_integration_and_interpretation/03_pathway_celltype_correlation_results.csv")
-patient_survival_data_exists                <- file.exists("../04_results/08_integration_and_interpretation/04_patient_survival_data.csv")
-cox_model_exists                            <- file.exists("../04_results/08_integration_and_interpretation/05_cox_model.rds")
-cox_model_results_exists                    <- file.exists("../04_results/08_integration_and_interpretation/06_cox_model_results.csv")
-schoenfeld_residuals_test_exists            <- file.exists("../04_results/08_integration_and_interpretation/07_schoenfeld_residuals_test.rds")
+pathway_analysis_integrated_summary_exists          <- file.exists(here::here("04_results", "08_integration_and_interpretation", "01_pathway_analysis_integrated_summary.csv"))
+gsva_pathway_activity_scores_exists                 <- file.exists(here::here("04_results", "08_integration_and_interpretation", "02_gsva_pathway_activity_scores.rds"))
+theme_pathway_cell_type_correlation_results_exists  <- file.exists(here::here("04_results", "08_integration_and_interpretation", "03_theme_pathway_cell_type_correlation_results.csv"))
+patient_survival_data_exists                        <- file.exists(here::here("04_results", "08_integration_and_interpretation", "04_patient_survival_data.csv"))
+cox_model_exists                                    <- file.exists(here::here("04_results", "08_integration_and_interpretation", "05_cox_model.rds"))
+cox_model_results_exists                            <- file.exists(here::here("04_results", "08_integration_and_interpretation", "06_cox_model_results.csv"))
+schoenfeld_residuals_test_exists                    <- file.exists(here::here("04_results", "08_integration_and_interpretation", "07_schoenfeld_residuals_test.rds"))
 
 
 # plot files
-pathway_celltype_correlation_heatmap_exists <- file.exists("../03_figures/08_integration_and_interpretation/01_pathway_celltype_correlation_heatmap.png")
-km_survival_curves_exists                   <- file.exists("../03_figures/08_integration_and_interpretation/02_km_survival_curves.png")
-cox_forest_plot_exists                      <- file.exists("../03_figures/08_integration_and_interpretation/03_cox_forest_plot.png")
-schoenfeld_residuals_exists                 <- file.exists("../03_figures/08_integration_and_interpretation/04_schoenfeld_residuals.png")
+theme_pathway_cell_type_correlation_heatmap_exists  <- file.exists(here::here("03_figures", "08_integration_and_interpretation", "01_theme_pathway_cell_type_correlation_heatmap.png"))
+km_survival_curves_exists                           <- file.exists(here::here("03_figures", "08_integration_and_interpretation", "02_km_survival_curves.png"))
+cox_forest_plot_exists                              <- file.exists(here::here("03_figures", "08_integration_and_interpretation", "03_cox_forest_plot.png"))
+schoenfeld_residuals_exists                         <- file.exists(here::here("03_figures", "08_integration_and_interpretation", "04_schoenfeld_residuals.png"))
 
 
 
-cat("Pathway analysis integrated summary saved:      ", ifelse(pathway_analysis_integrated_summary_exists,  "✓", "✗"), "\n")
-cat("GSVA pathway activity scores saved:             ", ifelse(gsva_pathway_activity_scores_exists,         "✓", "✗"), "\n")
-cat("Pathway-celltype correlation results saved:     ", ifelse(pathway_celltype_correlation_results_exists, "✓", "✗"), "\n")
-cat("Patient survival data saved:                    ", ifelse(patient_survival_data_exists,                "✓", "✗"), "\n")
-cat("Cox model saved:                                ", ifelse(cox_model_exists,                            "✓", "✗"), "\n")
-cat("Cox model results saved:                        ", ifelse(cox_model_results_exists,                    "✓", "✗"), "\n")
-cat("Schoenfeld residuals test saved:                ", ifelse(schoenfeld_residuals_test_exists,            "✓", "✗"), "\n\n")
+cat("Pathway analysis integrated summary saved:            ", ifelse(pathway_analysis_integrated_summary_exists,         "✓", "✗"), "\n")
+cat("GSVA pathway activity scores saved:                   ", ifelse(gsva_pathway_activity_scores_exists,                "✓", "✗"), "\n")
+cat("Theme pathway-celltype correlation results saved:     ", ifelse(theme_pathway_cell_type_correlation_results_exists, "✓", "✗"), "\n")
+cat("Patient survival data saved:                          ", ifelse(patient_survival_data_exists,                       "✓", "✗"), "\n")
+cat("Cox model saved:                                      ", ifelse(cox_model_exists,                                   "✓", "✗"), "\n")
+cat("Cox model results saved:                              ", ifelse(cox_model_results_exists,                           "✓", "✗"), "\n")
+cat("Schoenfeld residuals test saved:                      ", ifelse(schoenfeld_residuals_test_exists,                   "✓", "✗"), "\n\n")
 
-cat("Pathway-celltype correlation heatmap saved:     ", ifelse(pathway_celltype_correlation_heatmap_exists, "✓", "✗"), "\n")
-cat("KM survival curves saved:                       ", ifelse(km_survival_curves_exists,                   "✓", "✗"), "\n")
-cat("Cox forest plot saved:                          ", ifelse(cox_forest_plot_exists,                      "✓", "✗"), "\n")
-cat("Schoenfeld residuals plot saved:                ", ifelse(schoenfeld_residuals_exists,                 "✓", "✗"), "\n")
+cat("Theme pathway-celltype correlation heatmap saved:     ", ifelse(theme_pathway_cell_type_correlation_heatmap_exists, "✓", "✗"), "\n")
+cat("KM survival curves saved:                             ", ifelse(km_survival_curves_exists,                          "✓", "✗"), "\n")
+cat("Cox forest plot saved:                                ", ifelse(cox_forest_plot_exists,                             "✓", "✗"), "\n")
+cat("Schoenfeld residuals plot saved:                      ", ifelse(schoenfeld_residuals_exists,                        "✓", "✗"), "\n")
 
 
 if (
   all(
     pathway_analysis_integrated_summary_exists,
     gsva_pathway_activity_scores_exists,
-    pathway_celltype_correlation_results_exists,
+    theme_pathway_cell_type_correlation_results_exists,
     patient_survival_data_exists,
     cox_model_exists,
     cox_model_results_exists,
     schoenfeld_residuals_test_exists,
     
-    pathway_celltype_correlation_heatmap_exists,
+    theme_pathway_cell_type_correlation_heatmap_exists,
     km_survival_curves_exists,
     cox_forest_plot_exists,
     schoenfeld_residuals_exists

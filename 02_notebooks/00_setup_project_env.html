@@ -7,7 +7,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 
 <meta name="author" content="Shirshak Aryal">
-<meta name="dcterms.date" content="2026-07-03">
+<meta name="dcterms.date" content="2026-11-25">
 
 <title>Notebook 00: Setup Project Environment</title>
 <style>
@@ -2402,7 +2402,7 @@ vertical-align: -.125em;
     <div>
     <div class="quarto-title-meta-heading">Published</div>
     <div class="quarto-title-meta-contents">
-      <p class="date">July 3, 2026</p>
+      <p class="date">November 25, 2026</p>
     </div>
   </div>
   
@@ -2416,7 +2416,7 @@ vertical-align: -.125em;
 
 <p>Validate the R environment, confirm all required packages are installed, and create the project folder structure before starting any analysis.</p>
 <section id="validate-r-environment" class="level2">
-<h2 class="anchored" data-anchor-id="validate-r-environment">1. Validate R <code>Environment</code></h2>
+<h2 class="anchored" data-anchor-id="validate-r-environment">1. Validate R Environment</h2>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb1"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="fu">cat</span>(<span class="st">&quot;R version:&quot;</span>, R.version<span class="sc">$</span>major, <span class="st">&quot;.&quot;</span>, R.version<span class="sc">$</span>minor, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
@@ -2432,29 +2432,31 @@ vertical-align: -.125em;
 <h2 class="anchored" data-anchor-id="validate-required-packages">2. Validate Required Packages</h2>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb5"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a>required_packages <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;TCGAbiolinks&quot;</span>,          <span class="co"># query and download TCGA datasets from GDC</span></span>
-<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;tidyverse&quot;</span>,             <span class="co"># data manipulation and visualisation</span></span>
-<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;SummarizedExperiment&quot;</span>,  <span class="co"># container to store multi-assay data; AnnData of R</span></span>
-<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;pheatmap&quot;</span>,              <span class="co"># colorful heatmaps</span></span>
-<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;DESeq2&quot;</span>,                <span class="co"># differential expression analysis</span></span>
-<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;edgeR&quot;</span>,                 <span class="co"># differential expression analysis</span></span>
-<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;apeglm&quot;</span>,                <span class="co"># LFC shrinkage for DESeq2 visualization and GSEA ranking</span></span>
-<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;clusterProfiler&quot;</span>,       <span class="co"># gene set enrichment and pathway analysis</span></span>
-<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;ggvenn&quot;</span>,                <span class="co"># venn diagrams for visualising gene list overlaps</span></span>
-<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;org.Hs.eg.db&quot;</span>,          <span class="co"># human gene annotation database</span></span>
-<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;enrichplot&quot;</span>,            <span class="co"># visualisation of enrichment results</span></span>
-<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;MCPcounter&quot;</span>,            <span class="co"># cell type abundance estimation from bulk RNA-seq using marker gene expression</span></span>
-<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;survival&quot;</span>,              <span class="co"># survival analysis (Kaplan-Meier, Cox proportional hazards)</span></span>
-<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;survminer&quot;</span>,             <span class="co"># publication-ready survival curve visualisation</span></span>
-<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;GSVA&quot;</span>,                  <span class="co"># single-sample gene set enrichment scoring (per-sample pathway activity)</span></span>
-<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;broom&quot;</span>                  <span class="co"># tidying Cox model outputs into clean, readable dataframes</span></span>
-<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (pkg <span class="cf">in</span> required_packages) {</span>
-<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(pkg, <span class="st">&quot;:&quot;</span>, <span class="fu">as.character</span>(<span class="fu">packageVersion</span>(pkg)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;here&quot;</span>,                  <span class="co"># project directory management</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;TCGAbiolinks&quot;</span>,          <span class="co"># query and download TCGA datasets from GDC</span></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;tidyverse&quot;</span>,             <span class="co"># data manipulation and visualisation</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;SummarizedExperiment&quot;</span>,  <span class="co"># container to store multi-assay data; AnnData of R</span></span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;pheatmap&quot;</span>,              <span class="co"># colorful heatmaps</span></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;DESeq2&quot;</span>,                <span class="co"># differential expression analysis</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;edgeR&quot;</span>,                 <span class="co"># differential expression analysis</span></span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;apeglm&quot;</span>,                <span class="co"># LFC shrinkage for DESeq2 visualization and GSEA ranking</span></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;clusterProfiler&quot;</span>,       <span class="co"># gene set enrichment and pathway analysis</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;ggvenn&quot;</span>,                <span class="co"># venn diagrams for visualising gene list overlaps</span></span>
+<span id="cb5-12"><a href="#cb5-12" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;org.Hs.eg.db&quot;</span>,          <span class="co"># human gene annotation database</span></span>
+<span id="cb5-13"><a href="#cb5-13" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;enrichplot&quot;</span>,            <span class="co"># visualisation of enrichment results</span></span>
+<span id="cb5-14"><a href="#cb5-14" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;MCPcounter&quot;</span>,            <span class="co"># cell type abundance estimation from bulk RNA-seq using marker gene expression</span></span>
+<span id="cb5-15"><a href="#cb5-15" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;survival&quot;</span>,              <span class="co"># survival analysis (Kaplan-Meier, Cox proportional hazards)</span></span>
+<span id="cb5-16"><a href="#cb5-16" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;survminer&quot;</span>,             <span class="co"># publication-ready survival curve visualisation</span></span>
+<span id="cb5-17"><a href="#cb5-17" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;GSVA&quot;</span>,                  <span class="co"># single-sample gene set enrichment scoring (per-sample pathway activity)</span></span>
+<span id="cb5-18"><a href="#cb5-18" aria-hidden="true" tabindex="-1"></a>    <span class="st">&quot;broom&quot;</span>                  <span class="co"># tidying Cox model outputs into clean, readable dataframes</span></span>
+<span id="cb5-19"><a href="#cb5-19" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb5-20"><a href="#cb5-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-21"><a href="#cb5-21" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (pkg <span class="cf">in</span> required_packages) {</span>
+<span id="cb5-22"><a href="#cb5-22" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(pkg, <span class="st">&quot;:&quot;</span>, <span class="fu">as.character</span>(<span class="fu">packageVersion</span>(pkg)), <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb5-23"><a href="#cb5-23" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>TCGAbiolinks : 2.38.0 
+<pre><code>here : 1.0.2 
+TCGAbiolinks : 2.38.0 
 tidyverse : 2.0.0 
 SummarizedExperiment : 1.40.0 
 pheatmap : 1.0.13 
@@ -2482,68 +2484,53 @@ All required packages present</code></pre>
 <h2 class="anchored" data-anchor-id="create-project-folder-structure">3. Create Project Folder Structure</h2>
 <div class="cell">
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb9"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a>dirs <span class="ot">&lt;-</span> <span class="fu">c</span>(</span>
-<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>  <span class="co"># ========== data ==========</span></span>
-<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>  <span class="co"># ----- raw data -----</span></span>
-<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>  <span class="co"># raw sample TSV files from GDC</span></span>
-<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../01_data/01_raw/01_samples&quot;</span>,</span>
-<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a>  <span class="co"># raw clinical metadata</span></span>
-<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../01_data/01_raw/02_clinical&quot;</span>,</span>
-<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a>  <span class="co"># GBMdeconvoluteR marker gene reference datasets for MCPCounter (from Neftel et al. 2019/Moreno et al. 2022 papers)</span></span>
-<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic&quot;</span>,  <span class="co"># Neftel neoplastic + Moreno immune (for primary deconv)</span></span>
-<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic&quot;</span>,  <span class="co"># Moreno neoplastic + Moreno immune (for confirmatory deconv)</span></span>
-<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>  <span class="co"># ----- processed data -----</span></span>
-<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../01_data/02_processed&quot;</span>,  <span class="co"># intermediate processed data states</span></span>
-<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>  <span class="co"># ========== figures ==========</span></span>
-<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../03_figures/03_qc&quot;</span>,                              <span class="co"># before/after QC filtering plots</span></span>
-<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../03_figures/04_eda&quot;</span>,                             <span class="co"># exploratory data analysis (EDA) plots</span></span>
-<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../03_figures/05_de_analysis&quot;</span>,                     <span class="co"># volcano plot, DESeq2/EdgeR overlap venn diagram, DE heatmap</span></span>
-<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../03_figures/06_pathway_enrichment&quot;</span>,              <span class="co"># pathway enrichment plots</span></span>
-<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../03_figures/07_deconvolution&quot;</span>,                   <span class="co"># cell type composition plots</span></span>
-<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../03_figures/08_integration_and_interpretation&quot;</span>,  <span class="co"># pathway-celltype correlation heatmap, KM plot, Cox model forest plot, Schoenfeld residuals plot</span></span>
-<span id="cb9-32"><a href="#cb9-32" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-33"><a href="#cb9-33" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-34"><a href="#cb9-34" aria-hidden="true" tabindex="-1"></a>  </span>
-<span id="cb9-35"><a href="#cb9-35" aria-hidden="true" tabindex="-1"></a>  <span class="co"># ========== results ==========</span></span>
-<span id="cb9-36"><a href="#cb9-36" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../04_results/05_de_analysis&quot;</span>,                    <span class="co"># consensus and DESeq2/EdgeR results tables</span></span>
-<span id="cb9-37"><a href="#cb9-37" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../04_results/06_pathway_enrichment/01_ora&quot;</span>,      <span class="co"># pathway enrichment (ORA) results tables</span></span>
-<span id="cb9-38"><a href="#cb9-38" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../04_results/06_pathway_enrichment/02_gsea&quot;</span>,     <span class="co"># pathway enrichment (GSEA) results tables</span></span>
-<span id="cb9-39"><a href="#cb9-39" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../04_results/07_deconvolution&quot;</span>,                  <span class="co"># cell type abundance score estimates</span></span>
-<span id="cb9-40"><a href="#cb9-40" aria-hidden="true" tabindex="-1"></a>  <span class="st">&quot;../04_results/08_integration_and_interpretation&quot;</span>  <span class="co"># Cox model object, Cox model results, KM plot results, Scoenfeld residuals, pathway-celltype correlations, etc.</span></span>
-<span id="cb9-41"><a href="#cb9-41" aria-hidden="true" tabindex="-1"></a>)</span>
-<span id="cb9-42"><a href="#cb9-42" aria-hidden="true" tabindex="-1"></a></span>
-<span id="cb9-43"><a href="#cb9-43" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (d <span class="cf">in</span> dirs) {</span>
-<span id="cb9-44"><a href="#cb9-44" aria-hidden="true" tabindex="-1"></a>  <span class="fu">dir.create</span>(d, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
-<span id="cb9-45"><a href="#cb9-45" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;Created:&quot;</span>, d, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
-<span id="cb9-46"><a href="#cb9-46" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ========================= data =========================</span></span>
+<span id="cb9-3"><a href="#cb9-3" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ----- raw data -----</span></span>
+<span id="cb9-4"><a href="#cb9-4" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;01_samples&quot;</span>),</span>
+<span id="cb9-5"><a href="#cb9-5" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;02_clinical&quot;</span>),</span>
+<span id="cb9-6"><a href="#cb9-6" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;03_deconvolution_references&quot;</span>, <span class="st">&quot;01_neftel_neoplastic&quot;</span>),</span>
+<span id="cb9-7"><a href="#cb9-7" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;01_raw&quot;</span>, <span class="st">&quot;03_deconvolution_references&quot;</span>, <span class="st">&quot;02_moreno_neoplastic&quot;</span>),</span>
+<span id="cb9-8"><a href="#cb9-8" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-9"><a href="#cb9-9" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ----- processed data -----</span></span>
+<span id="cb9-10"><a href="#cb9-10" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;01_data&quot;</span>, <span class="st">&quot;02_processed&quot;</span>),</span>
+<span id="cb9-11"><a href="#cb9-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-12"><a href="#cb9-12" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ========================= figures =========================</span></span>
+<span id="cb9-13"><a href="#cb9-13" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;03_figures&quot;</span>, <span class="st">&quot;03_qc&quot;</span>),</span>
+<span id="cb9-14"><a href="#cb9-14" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;03_figures&quot;</span>, <span class="st">&quot;04_eda&quot;</span>),</span>
+<span id="cb9-15"><a href="#cb9-15" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;03_figures&quot;</span>, <span class="st">&quot;05_de_analysis&quot;</span>),</span>
+<span id="cb9-16"><a href="#cb9-16" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;03_figures&quot;</span>, <span class="st">&quot;06_pathway_enrichment&quot;</span>),</span>
+<span id="cb9-17"><a href="#cb9-17" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;03_figures&quot;</span>, <span class="st">&quot;07_deconvolution&quot;</span>),</span>
+<span id="cb9-18"><a href="#cb9-18" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;03_figures&quot;</span>, <span class="st">&quot;08_integration_and_interpretation&quot;</span>),</span>
+<span id="cb9-19"><a href="#cb9-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-20"><a href="#cb9-20" aria-hidden="true" tabindex="-1"></a>    <span class="co"># ========================= results =========================</span></span>
+<span id="cb9-21"><a href="#cb9-21" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;04_results&quot;</span>, <span class="st">&quot;05_de_analysis&quot;</span>),</span>
+<span id="cb9-22"><a href="#cb9-22" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;04_results&quot;</span>, <span class="st">&quot;06_pathway_enrichment&quot;</span>, <span class="st">&quot;01_ora&quot;</span>),</span>
+<span id="cb9-23"><a href="#cb9-23" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;04_results&quot;</span>, <span class="st">&quot;06_pathway_enrichment&quot;</span>, <span class="st">&quot;02_gsea&quot;</span>),</span>
+<span id="cb9-24"><a href="#cb9-24" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;04_results&quot;</span>, <span class="st">&quot;07_deconvolution&quot;</span>),</span>
+<span id="cb9-25"><a href="#cb9-25" aria-hidden="true" tabindex="-1"></a>    here<span class="sc">::</span><span class="fu">here</span>(<span class="st">&quot;04_results&quot;</span>, <span class="st">&quot;08_integration_and_interpretation&quot;</span>)</span>
+<span id="cb9-26"><a href="#cb9-26" aria-hidden="true" tabindex="-1"></a>)</span>
+<span id="cb9-27"><a href="#cb9-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb9-28"><a href="#cb9-28" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (d <span class="cf">in</span> dirs) {</span>
+<span id="cb9-29"><a href="#cb9-29" aria-hidden="true" tabindex="-1"></a>    <span class="fu">dir.create</span>(d, <span class="at">recursive =</span> <span class="cn">TRUE</span>, <span class="at">showWarnings =</span> <span class="cn">FALSE</span>)</span>
+<span id="cb9-30"><a href="#cb9-30" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">&quot;Created:&quot;</span>, d, <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb9-31"><a href="#cb9-31" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>Created: ../01_data/01_raw/01_samples 
-Created: ../01_data/01_raw/02_clinical 
-Created: ../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic 
-Created: ../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic 
-Created: ../01_data/02_processed 
-Created: ../03_figures/03_qc 
-Created: ../03_figures/04_eda 
-Created: ../03_figures/05_de_analysis 
-Created: ../03_figures/06_pathway_enrichment 
-Created: ../03_figures/07_deconvolution 
-Created: ../03_figures/08_integration_and_interpretation 
-Created: ../04_results/05_de_analysis 
-Created: ../04_results/06_pathway_enrichment/01_ora 
-Created: ../04_results/06_pathway_enrichment/02_gsea 
-Created: ../04_results/07_deconvolution 
-Created: ../04_results/08_integration_and_interpretation </code></pre>
+<pre><code>Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/01_data/01_raw/01_samples 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/01_data/01_raw/02_clinical 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/01_data/02_processed 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/03_qc 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/04_eda 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/05_de_analysis 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/06_pathway_enrichment 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/07_deconvolution 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/08_integration_and_interpretation 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/04_results/05_de_analysis 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/04_results/06_pathway_enrichment/01_ora 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/04_results/06_pathway_enrichment/02_gsea 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/04_results/07_deconvolution 
+Created: /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/04_results/08_integration_and_interpretation </code></pre>
 </div>
 </div>
 </section>
@@ -2556,30 +2543,30 @@ Created: ../04_results/08_integration_and_interpretation </code></pre>
 <pre><code>Folder creation check:</code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb13"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb13-1"><a href="#cb13-1" aria-hidden="true" tabindex="-1"></a><span class="cf">for</span> (i <span class="cf">in</span> <span class="fu">seq_along</span>(dirs)) {</span>
-<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="fu">ifelse</span>(created[i], <span class="st">&quot;✓&quot;</span>, <span class="st">&quot;✗&quot;</span>), dirs[i], <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb13-2"><a href="#cb13-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="fu">ifelse</span>(created[i], <span class="st">&quot;✓&quot;</span>, <span class="st">&quot;✗&quot;</span>), dirs[i], <span class="st">&quot;</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb13-3"><a href="#cb13-3" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
-<pre><code>✓ ../01_data/01_raw/01_samples 
-✓ ../01_data/01_raw/02_clinical 
-✓ ../01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic 
-✓ ../01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic 
-✓ ../01_data/02_processed 
-✓ ../03_figures/03_qc 
-✓ ../03_figures/04_eda 
-✓ ../03_figures/05_de_analysis 
-✓ ../03_figures/06_pathway_enrichment 
-✓ ../03_figures/07_deconvolution 
-✓ ../03_figures/08_integration_and_interpretation 
-✓ ../04_results/05_de_analysis 
-✓ ../04_results/06_pathway_enrichment/01_ora 
-✓ ../04_results/06_pathway_enrichment/02_gsea 
-✓ ../04_results/07_deconvolution 
-✓ ../04_results/08_integration_and_interpretation </code></pre>
+<pre><code>✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/01_data/01_raw/01_samples 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/01_data/01_raw/02_clinical 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/01_data/01_raw/03_deconvolution_references/01_neftel_neoplastic 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/01_data/01_raw/03_deconvolution_references/02_moreno_neoplastic 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/01_data/02_processed 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/03_qc 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/04_eda 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/05_de_analysis 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/06_pathway_enrichment 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/07_deconvolution 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/03_figures/08_integration_and_interpretation 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/04_results/05_de_analysis 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/04_results/06_pathway_enrichment/01_ora 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/04_results/06_pathway_enrichment/02_gsea 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/04_results/07_deconvolution 
+✓ /home/shirshak/gbm_project_current/Bulk-RNAseq-TCGA-GBM/04_results/08_integration_and_interpretation </code></pre>
 </div>
 <div class="code-copy-outer-scaffold"><div class="sourceCode cell-code" id="cb15"><pre class="sourceCode r code-with-copy"><code class="sourceCode r"><span id="cb15-1"><a href="#cb15-1" aria-hidden="true" tabindex="-1"></a><span class="cf">if</span> (<span class="fu">all</span>(created)) {</span>
-<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">All folders created successfully</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb15-2"><a href="#cb15-2" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">All folders created successfully</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb15-3"><a href="#cb15-3" aria-hidden="true" tabindex="-1"></a>} <span class="cf">else</span> {</span>
-<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>  <span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">WARNING: Some folders were not created</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
+<span id="cb15-4"><a href="#cb15-4" aria-hidden="true" tabindex="-1"></a>    <span class="fu">cat</span>(<span class="st">&quot;</span><span class="sc">\n</span><span class="st">WARNING: Some folders were not created</span><span class="sc">\n</span><span class="st">&quot;</span>)</span>
 <span id="cb15-5"><a href="#cb15-5" aria-hidden="true" tabindex="-1"></a>}</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <div class="cell-output cell-output-stdout">
 <pre><code>

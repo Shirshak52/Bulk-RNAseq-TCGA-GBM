@@ -1,5 +1,5 @@
 ---
-title: "Notebook 02: Prepare Dataset"
+title: "Notebook 02: Prepare Count Matrix"
 author: "Shirshak Aryal"
 date: today
 format:
@@ -31,10 +31,9 @@ Consolidate data of **all 372 samples** into a **single `SummarizedExperiment` o
 ```{r}
 #| label: import_libraries
 
-
-library(TCGAbiolinks)          # query and download TCGA datasets from GDC
-library(tidyverse)             # data manipulation and visualisation
-library(SummarizedExperiment)  # container to store multi-assay data; AnnData of R
+library(TCGAbiolinks) # query and download TCGA datasets from GDC
+library(tidyverse) # data manipulation and visualisation
+library(SummarizedExperiment) # container to store multi-assay data; AnnData of R
 
 cat("\nLibraries loaded successfully\n")
 cat("TCGAbiolinks version:", as.character(packageVersion("TCGAbiolinks")), "\n")
@@ -42,7 +41,7 @@ cat("tidyverse version:", as.character(packageVersion("tidyverse")), "\n")
 cat("SummarizedExperiment version:", as.character(packageVersion("SummarizedExperiment")), "\n")
 ```
 
-## 2. Prepare Dataset
+## 2. Prepare Count Matrix
 
 ### 2.1. Inspect Sample Details
 
@@ -51,13 +50,12 @@ Inspect a single sample file to explore and understand the structure and content
 ```{r}
 #| label: inspect_sample_details
 
-
 # Get path to first TSV file
 sample_files <- list.files(
-  path = "../01_data/01_raw/01_samples",
-  recursive = TRUE,
-  pattern = "\\.tsv$",
-  full.names = TRUE
+    path = here::here("01_data", "01_raw", "01_samples"),
+    recursive = TRUE,
+    pattern = "\\.tsv$",
+    full.names = TRUE
 )
 
 # Read first file
@@ -223,13 +221,12 @@ Recreate the query for primary tumor samples from **Notebook 01**. This is requi
 ```{r}
 #| label: recreate_query_for_primary_tumor_samples
 
-
 query_primary <- GDCquery(
-  project = "TCGA-GBM",
-  data.category = "Transcriptome Profiling",
-  data.type = "Gene Expression Quantification",
-  workflow.type = "STAR - Counts",
-  sample.type = "Primary Tumor"
+    project = "TCGA-GBM",
+    data.category = "Transcriptome Profiling",
+    data.type = "Gene Expression Quantification",
+    workflow.type = "STAR - Counts",
+    sample.type = "Primary Tumor"
 )
 cat("Query object recreated successfully\n")
 cat("Samples in query:", nrow(getResults(query_primary)), "\n")
@@ -237,7 +234,7 @@ cat("Samples in query:", nrow(getResults(query_primary)), "\n")
 
 #### 2.2.2. Create `SummarizedExperiment` Object
 
-The GDCPrepare() function is used here, which performs three things simultaneously:
+The GDCPrepare() function is used here, which performs three things simultaneously: constructs the count matrix, attaches sample metadata, and attaches gene metadata.
 
 -   **Constructs the count matrix**
 
@@ -333,16 +330,15 @@ The output is a **SummarizedExperiment object**, which has all three components 
 #| label: create_summarized_experiment_object
 #| cache: true
 
-
-gc()  # free unused memory (i.e. garbage collect)
+gc() # free unused memory (i.e. garbage collect)
 
 # create SE object
 se <- GDCprepare(
-  query = query_primary,
-  directory = "../01_data/01_raw/01_samples"
+    query = query_primary,
+    directory = here::here("01_data", "01_raw", "01_samples")
 )
 
-gc()  # free unused memory (i.e. garbage collect)
+gc() # free unused memory (i.e. garbage collect)
 
 cat("SummarizedExperiment object loaded successfully\n")
 cat("Genes:", nrow(se), "\n")
@@ -355,7 +351,6 @@ cat("Samples:", ncol(se), "\n")
 
 ```{r}
 #| label: inspect_se_object
-
 
 cat("SummarizedExperiment object structure:\n")
 cat("Genes (rows):", nrow(se), "\n")
@@ -549,15 +544,14 @@ Across numerous GBM tumor samples, **Verhaak et al. (2010)** performed **unsuper
 ```{r}
 #| label: inspect_tumor_subtypes
 
-
 cat("GBM tumor subtypes:\n")
 print(table(colData(se)$paper_Transcriptome.Subtype, useNA = "always"))
 
 cat("\n\nFirst few rows (samples) and columns (tumor subtype info):\n")
 colData(se) %>%
-  as.data.frame() %>%
-  .[1:5, 1:5] %>%
-  knitr::kable()
+    as.data.frame() %>%
+    .[1:5, 1:5] %>%
+    knitr::kable()
 ```
 
 #### 2.3.3. Inspect Gene Metadata
@@ -565,12 +559,13 @@ colData(se) %>%
 ```{r}
 #| label: inspect_gene_metadata
 
-
 cat("Gene metadata columns:\n")
 print(colnames(rowData(se)))
 
 cat("\nFirst 6 rows of gene metadata:\n")
-head(rowData(se)) %>% as.data.frame() %>% knitr::kable()
+head(rowData(se)) %>%
+    as.data.frame() %>%
+    knitr::kable()
 ```
 
 ## 3. Extract Raw Counts Matrix
@@ -579,7 +574,6 @@ head(rowData(se)) %>% as.data.frame() %>% knitr::kable()
 
 ```{r}
 #| label: extract_raw_counts_matrix
-
 
 # Extract unstranded raw counts matrix from the SE object
 counts_matrix <- assay(se, "unstranded")
@@ -591,7 +585,6 @@ cat("Raw counts matrix extracted successfully\n")
 
 ```{r}
 #| label: inspect_raw_counts_matrix
-
 
 cat("Dimensions:", nrow(counts_matrix), "genes x", ncol(counts_matrix), "samples\n")
 cat("Class:", class(counts_matrix), "\n")
@@ -618,9 +611,8 @@ cat("Median library size:", median(lib_sizes), "\n")
 ```{r}
 #| label: save_counts_matrix
 
-
 # Save counts matrix
-saveRDS(counts_matrix, "../01_data/02_processed/01_raw_counts_matrix.rds")
+saveRDS(counts_matrix, here::here("01_data", "02_processed", "01_raw_counts_matrix.rds"))
 cat("Saved: 01_raw_counts_matrix.rds\n")
 ```
 
@@ -629,9 +621,8 @@ cat("Saved: 01_raw_counts_matrix.rds\n")
 ```{r}
 #| label: save_tumor_subtype_info
 
-
 tumor_subtype_info <- colData(se) %>% as.data.frame()
-saveRDS(tumor_subtype_info, "../01_data/02_processed/02_tumor_subtype_info.rds")
+saveRDS(tumor_subtype_info, here::here("01_data", "02_processed", "02_tumor_subtype_info.rds"))
 cat("Saved: 02_tumor_subtype_info.rds\n")
 ```
 
@@ -640,10 +631,9 @@ cat("Saved: 02_tumor_subtype_info.rds\n")
 ```{r}
 #| label: save_gene_metadata
 
-
 # Save gene metadata — needed later for Ensembl ID to gene symbol mapping
 gene_metadata <- rowData(se) %>% as.data.frame()
-saveRDS(gene_metadata, "../01_data/02_processed/03_gene_metadata.rds")
+saveRDS(gene_metadata, here::here("01_data", "02_processed", "03_gene_metadata.rds"))
 cat("Saved: 03_gene_metadata.rds\n")
 ```
 
@@ -652,18 +642,17 @@ cat("Saved: 03_gene_metadata.rds\n")
 ```{r}
 #| label: perform_sanity_checks
 
-
-counts_exists      <- file.exists("../01_data/02_processed/01_raw_counts_matrix.rds")
-subtype_info_exists <- file.exists("../01_data/02_processed/02_tumor_subtype_info.rds")
-gene_meta_exists   <- file.exists("../01_data/02_processed/03_gene_metadata.rds")
+counts_exists <- file.exists(here::here("01_data", "02_processed", "01_raw_counts_matrix.rds"))
+subtype_info_exists <- file.exists(here::here("01_data", "02_processed", "02_tumor_subtype_info.rds"))
+gene_meta_exists <- file.exists(here::here("01_data", "02_processed", "03_gene_metadata.rds"))
 
 cat("Raw counts matrix saved:     ", ifelse(counts_exists, "✓", "✗"), "\n")
 cat("Tumor subtype info saved:    ", ifelse(subtype_info_exists, "✓", "✗"), "\n")
 cat("Gene metadata saved:         ", ifelse(gene_meta_exists, "✓", "✗"), "\n")
 
 if (counts_exists && subtype_info_exists && gene_meta_exists) {
-  cat("\nNotebook 02 complete — all outputs verified\n")
+    cat("\nNotebook 02 complete — all outputs verified\n")
 } else {
-  cat("\nWARNING: One or more outputs missing\n")
+    cat("\nWARNING: One or more outputs missing\n")
 }
 ```
