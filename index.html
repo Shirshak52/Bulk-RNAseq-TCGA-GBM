@@ -2422,25 +2422,25 @@ vertical-align: -.125em;
 <thead>
 <tr class="header">
 <th style="text-align: left;">Analysis</th>
-<th style="text-align: left;">Finding</th>
+<th style="text-align: left;">Findings</th>
 </tr>
 </thead>
 <tbody>
 <tr class="odd">
 <td style="text-align: left;"><strong>Samples (post-QC)</strong></td>
-<td style="text-align: left;">180 primary GBM tumors<br>• 55 PN<br>• 125 ME</td>
+<td style="text-align: left;"><strong>180 primary GBM tumors</strong><br>• 55 PN<br>• 125 ME</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><strong>DE genes (ME vs PN)</strong></td>
-<td style="text-align: left;">2,658 significant genes<br>• 1,528 up in ME, 1,130 up in PN<br>• &gt;94% DESeq2/EdgeR consensus</td>
+<td style="text-align: left;"><strong>2,658 significant genes</strong><br>• 1,528 up in ME, 1,130 up in PN<br>• &gt;94% DESeq2/EdgeR consensus</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><strong>ME upregulated theme</strong></td>
-<td style="text-align: left;">Mesenchymal/wound-healing program<br>• Adaptive immune response, cytokine signaling, leukocyte migration</td>
+<td style="text-align: left;"><strong>Mesenchymal/wound-healing program</strong><br>• Adaptive immune response, cytokine signaling, leukocyte migration</td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><strong>PN upregulated theme</strong></td>
-<td style="text-align: left;">Neural identity<br>• Axonogenesis, synapse assembly<br><br>Cell cycle proliferation<br>• Chromosome segregation, nuclear division</td>
+<td style="text-align: left;"><strong>Neural identity</strong><br>• Axonogenesis, synapse assembly<br><br><strong>Cell cycle proliferation</strong><br>• Chromosome segregation, nuclear division</td>
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><strong>Dominant ME cell types</strong></td>
@@ -2452,7 +2452,7 @@ vertical-align: -.125em;
 </tr>
 <tr class="odd">
 <td style="text-align: left;"><strong>Survival (KM)</strong></td>
-<td style="text-align: left;">Significant PN vs ME difference<br>• Log-rank <code>p=0.033</code></td>
+<td style="text-align: left;"><strong>Significant PN vs ME difference</strong><br>• Log-rank <code>p=0.033</code></td>
 </tr>
 <tr class="even">
 <td style="text-align: left;"><strong>Survival (Cox)</strong></td>
@@ -2503,16 +2503,67 @@ vertical-align: -.125em;
 <h2 class="anchored" data-anchor-id="installation">Installation</h2>
 <section id="prerequisites" class="level3">
 <h3 class="anchored" data-anchor-id="prerequisites">Prerequisites</h3>
+<p>These instructions are for Windows. Install <strong>WSL2 Ubuntu</strong> and <strong>VS Code</strong> on Windows, then install the remaining tools <strong>inside the WSL2 Ubuntu</strong>.</p>
+<section id="wsl2-ubuntu" class="level5">
+<h5 class="anchored" data-anchor-id="wsl2-ubuntu"><strong>1. WSL2 Ubuntu</strong></h5>
 <ul>
-<li><strong>Miniforge</strong> (recommended) or any Conda distribution to create/manage/reproduce the environment</li>
-<li><strong>Quarto CLI</strong> to render the <code>.qmd</code> notebooks
-<ul>
-<li>Installed standalone if using <strong>VSCode / CLI</strong></li>
-<li>OR, bundled with <strong>RStudio</strong></li>
-</ul></li>
-<li><strong>WSL2 (Ubuntu)</strong></li>
-<li><strong>VSCode</strong> (with the Quarto extension) OR <strong>RStudio</strong></li>
+<li>Open PowerShell <strong>as administrator</strong> and run:</li>
 </ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>wsl <span class="op">--</span>install <span class="op">-</span>d Ubuntu</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>Restart your computer if prompted.</li>
+<li>Launch WSL2 Ubuntu:</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a>wsl <span class="op">-</span>d Ubuntu</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<p>On first launch, it may ask you to create a username and password.</p>
+</section>
+<section id="vs-code" class="level5">
+<h5 class="anchored" data-anchor-id="vs-code"><strong>2. VS Code</strong></h5>
+<ol type="1">
+<li>Download and install VS Code: <a href="https://code.visualstudio.com/download">code.visualstudio.com/download</a></li>
+<li>Install the <strong>WSL</strong> and <strong>Quarto</strong> extensions (install the Quarto extension in the WSL: Ubuntu window when prompted).</li>
+</ol>
+</section>
+<section id="miniforge-inside-wsl2-ubuntu" class="level5">
+<h5 class="anchored" data-anchor-id="miniforge-inside-wsl2-ubuntu"><strong>3. Miniforge</strong> (inside WSL2 Ubuntu)</h5>
+<p>Used to create and reproduce the environment.</p>
+<ul>
+<li>Open PowerShell <strong>as administrator</strong> and run:</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>wsl <span class="op">-</span>d Ubuntu</span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cd</span> <span class="op">~</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>Inside the WSL Ubuntu terminal, run:</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb5"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb5-1"><a href="#cb5-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. Download the Miniforge installer</span></span>
+<span id="cb5-2"><a href="#cb5-2" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-L</span> <span class="at">-O</span> <span class="st">&quot;https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-</span><span class="va">$(</span><span class="fu">uname</span><span class="va">)</span><span class="st">-</span><span class="va">$(</span><span class="fu">uname</span> <span class="at">-m</span><span class="va">)</span><span class="st">.sh&quot;</span></span>
+<span id="cb5-3"><a href="#cb5-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-4"><a href="#cb5-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Run the installer</span></span>
+<span id="cb5-5"><a href="#cb5-5" aria-hidden="true" tabindex="-1"></a><span class="fu">bash</span> Miniforge3-<span class="va">$(</span><span class="fu">uname</span><span class="va">)</span>-<span class="va">$(</span><span class="fu">uname</span> <span class="at">-m</span><span class="va">)</span>.sh</span>
+<span id="cb5-6"><a href="#cb5-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-7"><a href="#cb5-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Reload your shell configuration</span></span>
+<span id="cb5-8"><a href="#cb5-8" aria-hidden="true" tabindex="-1"></a><span class="bu">source</span> ~/.bashrc</span>
+<span id="cb5-9"><a href="#cb5-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb5-10"><a href="#cb5-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Verify the installation</span></span>
+<span id="cb5-11"><a href="#cb5-11" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> <span class="at">--version</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
+<section id="quarto-cli" class="level5">
+<h5 class="anchored" data-anchor-id="quarto-cli"><strong>4. Quarto CLI</strong></h5>
+<ul>
+<li>While <strong>still inside the WSL Ubuntu Terminal</strong>, run:</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb6"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb6-1"><a href="#cb6-1" aria-hidden="true" tabindex="-1"></a><span class="co"># 1. The Quarto version used to develop this project</span></span>
+<span id="cb6-2"><a href="#cb6-2" aria-hidden="true" tabindex="-1"></a><span class="va">QUARTO_VERSION</span><span class="op">=</span>1.9.37</span>
+<span id="cb6-3"><a href="#cb6-3" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-4"><a href="#cb6-4" aria-hidden="true" tabindex="-1"></a><span class="co"># 2. Download the installer</span></span>
+<span id="cb6-5"><a href="#cb6-5" aria-hidden="true" tabindex="-1"></a><span class="ex">curl</span> <span class="at">-L</span> <span class="at">-O</span> <span class="st">&quot;https://github.com/quarto-dev/quarto-cli/releases/download/v</span><span class="va">${QUARTO_VERSION}</span><span class="st">/quarto-</span><span class="va">${QUARTO_VERSION}</span><span class="st">-linux-amd64.deb&quot;</span></span>
+<span id="cb6-6"><a href="#cb6-6" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-7"><a href="#cb6-7" aria-hidden="true" tabindex="-1"></a><span class="co"># 3. Install it</span></span>
+<span id="cb6-8"><a href="#cb6-8" aria-hidden="true" tabindex="-1"></a><span class="fu">sudo</span> apt install <span class="st">&quot;./quarto-</span><span class="va">${QUARTO_VERSION}</span><span class="st">-linux-amd64.deb&quot;</span></span>
+<span id="cb6-9"><a href="#cb6-9" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb6-10"><a href="#cb6-10" aria-hidden="true" tabindex="-1"></a><span class="co"># 4. Verify the installation</span></span>
+<span id="cb6-11"><a href="#cb6-11" aria-hidden="true" tabindex="-1"></a><span class="ex">quarto</span> <span class="at">--version</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+</section>
 </section>
 <section id="key-r-packages" class="level3">
 <h3 class="anchored" data-anchor-id="key-r-packages">Key R Packages</h3>
@@ -2592,18 +2643,29 @@ vertical-align: -.125em;
 <ol type="1">
 <li><strong>Launch WSL Ubuntu in your home folder (run from anywhere)</strong></li>
 </ol>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">wsl</span> <span class="at">-d</span> Ubuntu</span>
-<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> ~</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li><ul>
+<li>Open PowerShell <strong>as administrator</strong> and run:</li>
+</ul></li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb7"><pre class="sourceCode powershell code-with-copy"><code class="sourceCode powershell"><span id="cb7-1"><a href="#cb7-1" aria-hidden="true" tabindex="-1"></a>wsl <span class="op">-</span>d Ubuntu</span>
+<span id="cb7-2"><a href="#cb7-2" aria-hidden="true" tabindex="-1"></a><span class="fu">cd</span> <span class="op">~</span></span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 <ol start="2" type="1">
 <li><strong>Clone the repository</strong></li>
 </ol>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/Shirshak52/Bulk-RNAseq-TCGA-GBM.git</span>
-<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> Bulk-RNAseq-TCGA-GBM</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
-<ol start="2" type="1">
+<ul>
+<li>Inside the WSL Ubuntu terminal, run:</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb8"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb8-1"><a href="#cb8-1" aria-hidden="true" tabindex="-1"></a><span class="fu">git</span> clone https://github.com/Shirshak52/Bulk-RNAseq-TCGA-GBM.git</span>
+<span id="cb8-2"><a href="#cb8-2" aria-hidden="true" tabindex="-1"></a><span class="bu">cd</span> Bulk-RNAseq-TCGA-GBM</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ol start="3" type="1">
 <li><strong>Create the conda environment</strong></li>
 </ol>
-<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb4"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> env create <span class="at">-f</span> environment.yml</span>
-<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate gbm_project_env</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
+<ul>
+<li>While <strong>still inside the WSL Ubuntu Terminal</strong>, run:</li>
+</ul>
+<div class="code-copy-outer-scaffold"><div class="sourceCode" id="cb9"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb9-1"><a href="#cb9-1" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> env create <span class="at">-f</span> environment.yml</span>
+<span id="cb9-2"><a href="#cb9-2" aria-hidden="true" tabindex="-1"></a><span class="ex">conda</span> activate gbm_project_env</span></code></pre></div><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></div>
 </section>
 </section>
 <section id="usage" class="level2">

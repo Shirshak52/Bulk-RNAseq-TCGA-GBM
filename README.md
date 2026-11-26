@@ -24,15 +24,15 @@ Together, these steps **take a raw count matrix to a biological interpretation**
 
 ## Key Results
 
-| Analysis                   | Finding                                                                                                                                                                                     |
+| Analysis                   | Findings                                                                                                                                                                                    |
 | :------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| **Samples (post-QC)**      | 180 primary GBM tumors<br>• 55 PN<br>• 125 ME                                                                                                                                               |
-| **DE genes (ME vs PN)**    | 2,658 significant genes<br>• 1,528 up in ME, 1,130 up in PN<br>• >94% DESeq2/EdgeR consensus                                                                                                |
-| **ME upregulated theme**   | Mesenchymal/wound-healing program<br>• Adaptive immune response, cytokine signaling, leukocyte migration                                                                                    |
-| **PN upregulated theme**   | Neural identity<br>• Axonogenesis, synapse assembly<br><br>Cell cycle proliferation<br>• Chromosome segregation, nuclear division                                                           |
+| **Samples (post-QC)**      | **180 primary GBM tumors**<br>• 55 PN<br>• 125 ME                                                                                                                                           |
+| **DE genes (ME vs PN)**    | **2,658 significant genes**<br>• 1,528 up in ME, 1,130 up in PN<br>• >94% DESeq2/EdgeR consensus                                                                                            |
+| **ME upregulated theme**   | **Mesenchymal/wound-healing program**<br>• Adaptive immune response, cytokine signaling, leukocyte migration                                                                                |
+| **PN upregulated theme**   | **Neural identity**<br>• Axonogenesis, synapse assembly<br><br>**Cell cycle proliferation**<br>• Chromosome segregation, nuclear division                                                   |
 | **Dominant ME cell types** | MES-like neoplastic cells, TAMs, Microglia, T/B/NK cells, Endothelial, Mural cells                                                                                                          |
 | **Dominant PN cell types** | NPC/OPC-like neoplastic cells, Neurons, Oligodendrocytes, Radial glia                                                                                                                       |
-| **Survival (KM)**          | Significant PN vs ME difference<br>• Log-rank `p=0.033`                                                                                                                                     |
+| **Survival (KM)**          | **Significant PN vs ME difference**<br>• Log-rank `p=0.033`                                                                                                                                 |
 | **Survival (Cox)**         | **Age at diagnosis dominant death predictor**<br>• Hazard Ratio (HR) = 1.045/year (`p=1.08e-07`) <br><br>**Subtype NOT a significant predictor**<br>• Hazard Ratio (HR) = 1.079 (`p=0.831`) |
 
 ## Repository Structure
@@ -79,12 +79,74 @@ Bulk-RNAseq-TCGA-GBM/
 
 ### Prerequisites
 
-- **Miniforge** (recommended) or any Conda distribution to create/manage/reproduce the environment
-- **Quarto CLI** to render the `.qmd` notebooks
-    - Installed standalone if using **VSCode / CLI**
-    - OR, bundled with **RStudio**
-- **WSL2 (Ubuntu)**
-- **VSCode** (with the Quarto extension) OR **RStudio**
+These instructions are for Windows. Install **WSL2 Ubuntu** and **VS Code** on Windows, then install the remaining tools **inside the WSL2 Ubuntu**.
+
+#### **1. WSL2 Ubuntu**
+
+- Open PowerShell **as administrator** and run:
+
+```powershell
+wsl --install -d Ubuntu
+```
+
+- Restart your computer if prompted.
+- Launch WSL2 Ubuntu:
+
+```powershell
+wsl -d Ubuntu
+```
+
+On first launch, it may ask you to create a username and password.
+
+#### **2. VS Code**
+
+1. Download and install VS Code: [code.visualstudio.com/download](https://code.visualstudio.com/download)
+2. Install the **WSL** and **Quarto** extensions (install the Quarto extension in the WSL: Ubuntu window when prompted).
+
+#### **3. Miniforge** (inside WSL2 Ubuntu)
+
+Used to create and reproduce the environment.
+
+- Open PowerShell **as administrator** and run:
+
+```powershell
+wsl -d Ubuntu
+cd ~
+```
+
+- Inside the WSL Ubuntu terminal, run:
+
+```bash
+# 1. Download the Miniforge installer
+curl -L -O "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
+
+# 2. Run the installer
+bash Miniforge3-$(uname)-$(uname -m).sh
+
+# 3. Reload your shell configuration
+source ~/.bashrc
+
+# 4. Verify the installation
+conda --version
+```
+
+#### **4. Quarto CLI**
+
+- While still inside the WSL Ubuntu Terminal, run:
+
+```bash
+# 1. The Quarto version used to develop this project
+QUARTO_VERSION=1.9.37
+
+# 2. Download the installer
+curl -L -O "https://github.com/quarto-dev/quarto-cli/releases/download/v${QUARTO_VERSION}/quarto-${QUARTO_VERSION}-linux-amd64.deb"
+
+# 3. Install it
+sudo apt install "./quarto-${QUARTO_VERSION}-linux-amd64.deb"
+
+# 4. Verify the installation
+quarto --version
+```
 
 ### Key R Packages
 
