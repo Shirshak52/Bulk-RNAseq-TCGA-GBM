@@ -1,4 +1,4 @@
-# **Bulk RNA-seq TCGA-GBM Count Matrix Analysis: Proneural vs Mesenchymal GBM Subtypes**
+# **Bulk RNA-seq Count Matrix Analysis:<br>Proneural vs. Mesenchymal Subtypes in Glioblastoma Multiforme<br>_(TCGA-GBM)_**
 
 [![View as HTML](https://img.shields.io/badge/View_as_HTML-GitHub_Pages-blue?style=for-the-badge&logo=github)](https://shirshak52.github.io/Bulk-RNAseq-TCGA-GBM/)
 

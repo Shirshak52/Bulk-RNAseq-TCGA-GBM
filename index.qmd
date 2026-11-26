@@ -1,5 +1,5 @@
 ---
-title: "Bulk RNA-seq TCGA-GBM Count Matrix Analysis: Proneural vs Mesenchymal GBM Subtypes"
+title: "Bulk RNA-seq Count Matrix Analysis: Proneural vs. Mesenchymal Subtypes in Glioblastoma Multiforme *(TCGA-GBM)*"
 format:
   html:
     code-overflow: scroll
