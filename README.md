@@ -130,9 +130,9 @@ source ~/.bashrc
 conda --version
 ```
 
-#### **4. Quarto CLI**
+#### **4. Quarto CLI** (inside WSL2 Ubuntu)
 
-- While still inside the WSL Ubuntu Terminal, run:
+- While **still inside the WSL2 Ubuntu Terminal**, run:
 
 ```bash
 # 1. The Quarto version used to develop this project
