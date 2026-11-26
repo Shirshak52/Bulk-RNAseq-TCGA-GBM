@@ -79,9 +79,12 @@ Bulk-RNAseq-TCGA-GBM/
 
 ### Prerequisites
 
-- **R** 4.5.3+
-- **RStudio** (recommended) or any R environment
-- **Quarto** for rendering notebooks
+- **Miniforge** (recommended) or any Conda distribution to create/manage/reproduce the environment
+- **Quarto CLI** to render the `.qmd` notebooks
+    - Installed standalone if using **VSCode / CLI**
+    - OR, bundled with **RStudio**
+- **WSL2 (Ubuntu)**
+- **VSCode** (with the Quarto extension) OR **RStudio**
 
 ### Key R Packages
 
